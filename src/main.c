@@ -5,11 +5,15 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <stdbool.h>
 
 int main() {
   printf("Starting IPv6 client...\n");
 
   char host[] = "google.com";
+  void *hostip; // char[INET6_ADDRSTRLEN]
+  bool addr_found = false;
+
   int status;
   struct addrinfo hints;
   struct addrinfo *servinfo;       // points to the results
@@ -28,7 +32,7 @@ int main() {
   printf("IPv6 addresses of %s:\n\n", host);
 
   // Check all results
-  for (p = servinfo; p != NULL; p = p->ai_next) {
+  for (p = servinfo; p != NULL && !addr_found; p = p->ai_next) {
     void *addr;
     struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)p->ai_addr;
     addr = &(ipv6->sin6_addr);
@@ -36,6 +40,10 @@ int main() {
     // convert the IP to a string and print it:
     inet_ntop(p->ai_family, addr, ipstr, sizeof ipstr);
     printf(" %s\n", ipstr);
+
+    // TODO: more robust check
+    hostip = &ipstr;
+    addr_found = true;
   }
 
   freeaddrinfo(servinfo);

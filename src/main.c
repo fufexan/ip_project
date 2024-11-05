@@ -1,13 +1,14 @@
-#include "netinet/in.h"
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netdb.h>
+#include <netinet/in.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 int main() {
   printf("Starting IPv6 client...\n");
@@ -61,9 +62,13 @@ int main() {
     return 1;
   }
 
+  // servinfo is no longer needed
+  freeaddrinfo(servinfo);
+
   char *msg = "GET / HTTP/1.0\r\n\r\n";
   int len, bytes_sent;
   len = strlen(msg);
+  printf("Sending HTTP request...\n");
   bytes_sent = send(sockfd, msg, len, 0);
 
   if (bytes_sent == -1) {
@@ -71,10 +76,43 @@ int main() {
     return 1;
   }
 
-  len = 256 * 1000; // 256 KB
-  void *buf = calloc(len, sizeof(char));
-  int bytes_received;
-  bytes_received = recv(sockfd, buf, len, 0);
+  int step_size = 256000; // 256 KB, accomodates usual value of 212.9 KB set in /proc/sys/net/core/rmem_max
+  int cursor = 0;
+  int bytes_received, total_bytes_received = 0;
+  len = step_size;
+  void *buf = calloc(len, sizeof(char)), *new_buf;
+
+  printf("Awaiting response...\n");
+  do {
+    // Receive only as much as the amount of free space we have in the buffer
+    // Write bytes into the next free location in the buffer
+    bytes_received = recv(sockfd, buf + cursor, len - total_bytes_received, 0);
+    printf("received %d bytes\n", bytes_received);
+
+    // Keep count of the bytes received
+    total_bytes_received += bytes_received;
+    // Continue reading where we left off
+    cursor += bytes_received;
+
+    // If the buffer is filled, increase its size
+    if (total_bytes_received == len) {
+      new_buf = realloc(buf, len + step_size);
+
+      // realloc may fail and return NULL
+      if (new_buf != NULL) {
+        buf = new_buf;    // Change original buffer to new buffer
+        new_buf = NULL;   // Clear new_buf
+        len += step_size; // Increase buffer length
+        printf("Extended buffer to length %d\n", len);
+      }
+    }
+  } while (bytes_received > 0);
+
+  // Close socket; we're done using it
+  close(sockfd);
+
+  printf("\nResponse:\n\n%s\n\n", (char *)buf);
+  printf("Message length: %d\n", total_bytes_received);
 
   if (bytes_received == -1) {
     fprintf(stderr, "errno %d\n%s\n", errno, strerror(errno));
@@ -84,7 +122,6 @@ int main() {
     fprintf(stderr, "Remote has closed the connection\n");
     return 0;
   }
-  printf("%s", (char *)buf);
 
-  freeaddrinfo(servinfo);
+  return 0;
 }

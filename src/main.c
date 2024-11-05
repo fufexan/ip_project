@@ -1,11 +1,12 @@
 #include "netinet/in.h"
 #include <arpa/inet.h>
+#include <errno.h>
 #include <netdb.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <stdbool.h>
 
 int main() {
   printf("Starting IPv6 client...\n");
@@ -13,6 +14,7 @@ int main() {
   char host[] = "google.com";
   void *hostip; // char[INET6_ADDRSTRLEN]
   bool addr_found = false;
+  int sockfd;
 
   int status;
   struct addrinfo hints;
@@ -44,6 +46,18 @@ int main() {
     // TODO: more robust check
     hostip = &ipstr;
     addr_found = true;
+  }
+
+  if ((sockfd = socket(servinfo->ai_family, servinfo->ai_socktype,
+                       servinfo->ai_protocol)) == -1) {
+    fprintf(stderr, "Could not create socket!\n");
+    return 1;
+  }
+
+  if (connect(sockfd, servinfo->ai_addr, servinfo->ai_addrlen) == -1) {
+    fprintf(stderr, "Could not connect to %s: errno %d\n%s\n", (char *)hostip,
+            errno, strerror(errno));
+    return 1;
   }
 
   freeaddrinfo(servinfo);

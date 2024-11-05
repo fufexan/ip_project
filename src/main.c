@@ -4,6 +4,7 @@
 #include <netdb.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -59,6 +60,31 @@ int main() {
             errno, strerror(errno));
     return 1;
   }
+
+  char *msg = "GET / HTTP/1.0\r\n\r\n";
+  int len, bytes_sent;
+  len = strlen(msg);
+  bytes_sent = send(sockfd, msg, len, 0);
+
+  if (bytes_sent == -1) {
+    fprintf(stderr, "errno %d\n%s\n", errno, strerror(errno));
+    return 1;
+  }
+
+  len = 256 * 1000; // 256 KB
+  void *buf = calloc(len, sizeof(char));
+  int bytes_received;
+  bytes_received = recv(sockfd, buf, len, 0);
+
+  if (bytes_received == -1) {
+    fprintf(stderr, "errno %d\n%s\n", errno, strerror(errno));
+    return 1;
+  }
+  if (bytes_received == 0) {
+    fprintf(stderr, "Remote has closed the connection\n");
+    return 0;
+  }
+  printf("%s", (char *)buf);
 
   freeaddrinfo(servinfo);
 }

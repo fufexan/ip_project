@@ -9,6 +9,7 @@
 int main() {
   printf("Starting IPv6 client...\n");
 
+  char host[] = "google.com";
   int status;
   struct addrinfo hints;
   struct addrinfo *servinfo;       // points to the results
@@ -17,12 +18,14 @@ int main() {
   hints.ai_socktype = SOCK_STREAM; // TCP stream sockets
   hints.ai_flags = AI_PASSIVE;     // autofill IP
 
-  if ((status = getaddrinfo("google.com", "http", &hints, &servinfo)) != 0) {
+  if ((status = getaddrinfo(host, "http", &hints, &servinfo)) != 0) {
     fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
   }
 
   char ipstr[INET6_ADDRSTRLEN];
   struct addrinfo *p;
+
+  printf("IPv6 addresses of %s:\n\n", host);
 
   // Check all results
   for (p = servinfo; p != NULL; p = p->ai_next) {

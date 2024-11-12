@@ -28,6 +28,16 @@ struct addrinfo *get_ipv6_for(const char *name, const char *service) {
   return res;
 }
 
+void save_file(char *buffer, unsigned int length, char *file_name) {
+  FILE *file = fopen(file_name, "w");
+
+  if (file) {
+    fwrite(buffer, sizeof(char), length, file);
+  }
+
+  fclose(file);
+}
+
 int main(int argc, char **argv) {
   printf("Starting IPv6 client...\n");
 
@@ -150,10 +160,6 @@ int main(int argc, char **argv) {
   // Close socket; we're done using it
   close(sockfd);
 
-  // Print response
-  printf("\nResponse:\n\n%s\n\n", (char *)buf);
-  printf("Message length: %d\n", total_bytes_rx);
-
   // Error checking
   if (bytes_rx == -1) {
     fprintf(stderr, "Error receiving response!");
@@ -163,6 +169,40 @@ int main(int argc, char **argv) {
 
   if (bytes_rx == 0)
     fprintf(stderr, "Remote has closed the connection\n");
+
+  // Print message length
+  printf("Message length: %d\n", total_bytes_rx);
+
+  // Exit preemptively if response is empty
+  if (total_bytes_rx == 0) {
+    fprintf(stderr, "Empty response!");
+    exit(1);
+  }
+
+  // Split file
+  char *del = "\r\n\r\n";
+  // Search for HTTP delimiter
+  char *delimiter = strstr(buf, del);
+  char *headers, *content;
+
+  // If we couldn't find the delimiter, then the response is empty
+  if (!delimiter) {
+    fprintf(stderr, "Empty response!");
+    exit(1);
+  }
+
+  // Set the headers to the buffer
+  headers = buf;
+  // "split" response into two by only printing the buffer up to \0
+  *delimiter = '\0';
+  // Only start content after the whole delimiter, until the end of the buffer
+  // (or the first \0)
+  content = buf + strlen(headers) + strlen(del);
+
+  // Print headers
+  printf("%s\n", headers);
+  // Save content to `{host}.http`
+  save_file(content, strlen(content), strcat(host, ".html"));
 
   return 0;
 }

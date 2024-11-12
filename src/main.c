@@ -10,6 +10,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "./destinations.h"
+
 struct addrinfo *get_ipv6_for(const char *name, const char *service) {
   struct addrinfo hints, *res;
   int status;
@@ -26,13 +28,29 @@ struct addrinfo *get_ipv6_for(const char *name, const char *service) {
   return res;
 }
 
-int main() {
+int main(int argc, char **argv) {
   printf("Starting IPv6 client...\n");
 
-  char *host = "google.com";
+  // 64 bytes should be enough
+  char *host = calloc(64, sizeof(char));
   char hostaddr[INET6_ADDRSTRLEN];
   bool addr_found = false;
   int sockfd;
+
+  // Default host
+  strcpy(host, "google.com");
+
+  if (argc > 1) {
+    if (atoi(argv[1]) >= 0 && atoi(argv[1]) < DEST_MAX + 1) {
+      strcpy(host, destinations[atoi(argv[1])]);
+    } else {
+      fprintf(stderr,
+              "Invalid hostname! Please pick a number between 0 and %d\n",
+              DEST_MAX);
+
+      printf("Using host %s", hostaddr);
+    }
+  }
 
   struct addrinfo *res = get_ipv6_for(host, "http");
   struct addrinfo *p; // iterator

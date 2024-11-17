@@ -1,6 +1,6 @@
 #include "shared.h"
 
-char *receive(int sockfd) {
+char *receive(int sockfd, unsigned int num_bytes) {
   // Await response (synchronously)
   // 256 KB, accomodates usual value of 212.9 KB set in
   // /proc/sys/net/core/rmem_max  int step_size = 256000;
@@ -12,6 +12,11 @@ char *receive(int sockfd) {
 
   printf("Awaiting response...\n");
   do {
+    // We only want num_bytes, if non-zero
+    if (num_bytes != 0 && total_bytes_rx >= num_bytes) {
+      break;
+    }
+
     // Write bytes into the next free location in the buffer
     // Receive only as much as the amount of free space we have in the buffer
     bytes_rx = recv(sockfd, buf + cursor, len_rx - total_bytes_rx, 0);

@@ -111,7 +111,8 @@ int main(int argc, char **argv) {
   }
 
   // Receive response
-  char *buf = receive(sockfd);
+  // 0 num_bytes because we don't expect a fixed response size
+  char *buf = receive(sockfd, 0);
   long total_bytes_rx = strlen(buf);
 
   // Close socket; we're done using it

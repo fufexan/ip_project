@@ -10,7 +10,6 @@ char *receive(int sockfd, unsigned int num_bytes) {
   int len_rx = step_size;
   void *buf = malloc(sizeof(char) * len_rx), *new_buf;
 
-  printf("Awaiting response...\n");
   do {
     // We only want num_bytes, if non-zero
     if (num_bytes != 0 && total_bytes_rx >= num_bytes) {
@@ -43,7 +42,7 @@ char *receive(int sockfd, unsigned int num_bytes) {
 
   // Error checking
   if (bytes_rx == -1) {
-    fprintf(stderr, "Error receiving response!");
+    fprintf(stderr, "Error receiving data!");
     fprintf(stderr, "errno %d: %s\n", errno, strerror(errno));
     exit(1);
   }

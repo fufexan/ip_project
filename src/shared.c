@@ -126,3 +126,11 @@ void error(const char *restrict format, ...) {
   fprintf(stderr, "\n");
   va_end(vargs);
 }
+
+void perrno(const char *restrict format, ...) {
+  va_list vargs;
+  va_start(vargs, format);
+  error(format, vargs);
+  va_end(vargs);
+  fprintf(stderr, "errno %d: %s\n", errno, strerror(errno));
+}

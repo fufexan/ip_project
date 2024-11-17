@@ -1,5 +1,4 @@
 #include <arpa/inet.h>
-#include <errno.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <stdbool.h>
@@ -33,8 +32,7 @@ int main(int argc, char **argv) {
 
   if ((sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) ==
       -1) {
-    error("Could not create socket!");
-    error("errno %d: %s", errno, strerror(errno));
+    perrno("Could not create socket!");
     exit(1);
   }
   debug("Socket created");
@@ -42,24 +40,21 @@ int main(int argc, char **argv) {
   // Reuse previous address in case the server was restarted
   int yes = 1;
   if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1) {
-    error("setsockopt error!");
-    error("errno %d: %s", errno, strerror(errno));
+    perrno("setsockopt error!");
     exit(1);
   }
 
   debug("Set socket to reuse previous addres\n");
   // Bind the socket to our port (set by calling getaddrinfo)
   if (bind(sockfd, res->ai_addr, res->ai_addrlen) == -1) {
-    error("bind error!");
-    error("errno %d: %s", errno, strerror(errno));
+    perrno("bind error!");
     exit(1);
   }
 
   debug("Listening for connections...");
   // Listen for incoming connections (max 10 at a time)
   if (listen(sockfd, 10) == -1) {
-    error("listen error!");
-    error("errno %d: %s", errno, strerror(errno));
+    perrno("listen error!");
     exit(1);
   }
 
@@ -72,8 +67,7 @@ int main(int argc, char **argv) {
   debug("Accepting connection...");
   if ((newsockfd =
            accept(sockfd, (struct sockaddr *)&remote_addr, &addr_size)) == -1) {
-    error("accept error!");
-    error("errno %d: %s", errno, strerror(errno));
+    perrno("accept error!");
     exit(1);
   }
 

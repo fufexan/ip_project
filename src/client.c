@@ -37,8 +37,7 @@ char *get_ipv6_addrstr(struct addrinfo *res) {
     const char *ptr = inet_ntop(AF_INET6, addr, hostaddr, INET6_ADDRSTRLEN);
 
     if (ptr == NULL) {
-      error("Failed to get string representation of IPv6 address!");
-      error("errno %d: %s", errno, strerror(errno));
+      perrno("Failed to get string representation of IPv6 address!");
     } else {
       debug("%s", hostaddr);
       addr_found = true;
@@ -80,16 +79,14 @@ int main(int argc, char **argv) {
   // Now that we have an IP, create a socket
   if ((sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) ==
       -1) {
-    error("Could not create socket!");
-    error("errno %d: %s", errno, strerror(errno));
+    perrno("Could not create socket!");
     exit(1);
   }
   debug("Socket created");
 
   // Connect to the remote over socket
   if (connect(sockfd, res->ai_addr, res->ai_addrlen) == -1) {
-    error("Could not connect to %s!", host);
-    error("errno %d: %s", errno, strerror(errno));
+    perrno("Could not connect to %s!", host);
     exit(1);
   }
   debug("Connection established");
@@ -103,8 +100,7 @@ int main(int argc, char **argv) {
 
   debug("Sending HTTP request '%s'...", message);
   if (send(sockfd, message, len_tx, 0) == -1) {
-    error("Sending HTTP request failed!");
-    error("errno %d: %s", errno, strerror(errno));
+    perrno("Sending HTTP request failed!");
     exit(1);
   }
 

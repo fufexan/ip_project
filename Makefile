@@ -2,11 +2,11 @@
 CC = gcc
 
 # OBJS specifies which files to compile as part of the project
-CLIENT_OBJS = src/client.c src/destinations.c
+CLIENT_OBJS = src/client.c src/destinations.c src/shared.c
 # HEADERS specifies the header files
-HEADERS = src/destinations.h
+HEADERS = src/destinations.h src/shared.h
 
-SERVER_OBJS = src/server.c
+SERVER_OBJS = src/server.c src/shared.c
 
 #OBJ_NAME specifies the name of our exectuable
 OBJ_NAME = main

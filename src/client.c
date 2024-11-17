@@ -17,7 +17,7 @@ struct addrinfo *get_ipv6_addrinfo(const char *name, const char *service) {
   hints.ai_flags = AI_PASSIVE;     // autofill IP
 
   if ((status = getaddrinfo(name, "http", &hints, &res)) != 0) {
-    fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
+    error("getaddrinfo error: %s\n", gai_strerror(status));
   }
 
   return res;
@@ -37,22 +37,21 @@ char *get_ipv6_addrstr(struct addrinfo *res) {
     const char *ptr = inet_ntop(AF_INET6, addr, hostaddr, INET6_ADDRSTRLEN);
 
     if (ptr == NULL) {
-      fprintf(stderr, "Failed to get string representation of IPv6 address!\n");
-      fprintf(stderr, "errno %d: %s\n", errno, strerror(errno));
+      error("Failed to get string representation of IPv6 address!");
+      error("errno %d: %s", errno, strerror(errno));
     } else {
-      printf("%s\n", hostaddr);
+      debug("%s", hostaddr);
       addr_found = true;
     }
   }
 
   if (!addr_found) {
-    fprintf(stderr, "Could not find a valid IPv6 address!\n");
+    error("Could not find a valid IPv6 address!");
     exit(1);
   }
 
   return hostaddr;
 }
-
 
 int main(int argc, char **argv) {
   printf("Starting IPv6 client...\n");
@@ -68,33 +67,32 @@ int main(int argc, char **argv) {
     if (atoi(argv[1]) >= 0 && atoi(argv[1]) < DEST_MAX + 1) {
       strcpy(host, destinations[atoi(argv[1])]);
     } else {
-      fprintf(stderr,
-              "Invalid hostname! Please pick a number between 0 and %d\n",
-              DEST_MAX);
+      error("Invalid hostname! Please pick a number between 0 and %d",
+            DEST_MAX);
 
-      printf("Using host %s", host);
+      printf("Using host %s\n", host);
     }
   }
 
   struct addrinfo *res = get_ipv6_addrinfo(host, "http");
-  printf("IPv6 address of %s: %s\n", host, get_ipv6_addrstr(res));
+  debug("IPv6 address of %s: %s", host, get_ipv6_addrstr(res));
 
   // Now that we have an IP, create a socket
   if ((sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) ==
       -1) {
-    fprintf(stderr, "Could not create socket!\n");
-    fprintf(stderr, "errno %d: %s\n", errno, strerror(errno));
+    error("Could not create socket!");
+    error("errno %d: %s", errno, strerror(errno));
     exit(1);
   }
-  printf("Socket created\n");
+  debug("Socket created");
 
   // Connect to the remote over socket
   if (connect(sockfd, res->ai_addr, res->ai_addrlen) == -1) {
-    fprintf(stderr, "Could not connect to %s!\n", host);
-    fprintf(stderr, "errno %d: %s\n", errno, strerror(errno));
+    error("Could not connect to %s!", host);
+    error("errno %d: %s", errno, strerror(errno));
     exit(1);
   }
-  printf("Connection established\n");
+  debug("Connection established");
 
   // servinfo is no longer needed, dispose
   freeaddrinfo(res);
@@ -103,10 +101,10 @@ int main(int argc, char **argv) {
   char *message = "GET / HTTP/1.0\r\n\r\n";
   int len_tx = strlen(message);
 
-  printf("Sending HTTP request '%s'...\n", message);
+  debug("Sending HTTP request '%s'...", message);
   if (send(sockfd, message, len_tx, 0) == -1) {
-    fprintf(stderr, "Sending HTTP request failed!\n");
-    fprintf(stderr, "errno %d: %s\n", errno, strerror(errno));
+    error("Sending HTTP request failed!");
+    error("errno %d: %s", errno, strerror(errno));
     exit(1);
   }
 
@@ -119,11 +117,11 @@ int main(int argc, char **argv) {
   close(sockfd);
 
   // Print message length
-  printf("Message length: %ld\n", total_bytes_rx);
+  debug("Message length: %ld", total_bytes_rx);
 
   // Exit preemptively if response is empty
   if (total_bytes_rx == 0) {
-    fprintf(stderr, "Empty response!");
+    error("Empty response!");
     exit(1);
   }
 

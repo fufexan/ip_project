@@ -1,4 +1,7 @@
 #include "shared.h"
+#include <stdarg.h>
+
+bool DEBUG = false, DEBUG_SET = false;
 
 char *receive(int sockfd, unsigned int num_bytes) {
   // Await response (synchronously)
@@ -19,7 +22,7 @@ char *receive(int sockfd, unsigned int num_bytes) {
     // Write bytes into the next free location in the buffer
     // Receive only as much as the amount of free space we have in the buffer
     bytes_rx = recv(sockfd, buf + cursor, len_rx - total_bytes_rx, 0);
-    printf("received %d bytes\n", bytes_rx);
+    debug("received %d bytes", bytes_rx);
 
     // Keep count of the bytes received
     total_bytes_rx += bytes_rx;
@@ -35,20 +38,20 @@ char *receive(int sockfd, unsigned int num_bytes) {
         buf = new_buf;       // Change original buffer to new buffer
         new_buf = NULL;      // Clear new_buf
         len_rx += step_size; // Increase buffer length
-        printf("Extended buffer to length %d\n", len_rx);
+        debug("Extended buffer to length %d", len_rx);
       }
     }
   } while (bytes_rx > 0);
 
   // Error checking
   if (bytes_rx == -1) {
-    fprintf(stderr, "Error receiving data!");
-    fprintf(stderr, "errno %d: %s\n", errno, strerror(errno));
+    error("Error receiving data!");
+    error("errno %d: %s", errno, strerror(errno));
     exit(1);
   }
 
   if (bytes_rx == 0)
-    fprintf(stderr, "Remote has closed the connection\n");
+    printf("Remote has closed the connection\n");
 
   return buf;
 }
@@ -62,7 +65,7 @@ char **split_http_response(char *buf, long len) {
 
   // If we couldn't find the delimiter, then the response is empty
   if (!delimiter) {
-    fprintf(stderr, "Empty response!");
+    error("Empty response!");
     exit(1);
   }
 
@@ -86,5 +89,40 @@ void save_file(char *buffer, unsigned int length, char *file_name) {
     fwrite(buffer, sizeof(char), length, file);
   }
 
+  debug("Saved file to %s\n", file_name);
+
   fclose(file);
+}
+
+void debug(const char *restrict format, ...) {
+  if (!DEBUG_SET) {
+    if (getenv("DEBUG") != NULL) {
+      printf("Setting DEBUG to true\n");
+      DEBUG = true;
+    }
+
+    DEBUG_SET = true;
+  }
+
+  if (!DEBUG) {
+    return;
+  }
+
+  va_list vargs;
+  // Begin orange colored output
+  printf("\033[0;33m");
+  va_start(vargs, format);
+  vprintf(format, vargs);
+  va_end(vargs);
+  // End orange colored output
+  printf("\033[0m\n");
+}
+
+void error(const char *restrict format, ...) {
+  va_list vargs;
+  fprintf(stderr, "ERROR: ");
+  va_start(vargs, format);
+  vfprintf(stderr, format, vargs);
+  fprintf(stderr, "\n");
+  va_end(vargs);
 }

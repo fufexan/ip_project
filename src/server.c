@@ -27,39 +27,39 @@ int main(int argc, char **argv) {
       AI_PASSIVE | AI_NUMERICSERV; // Fill in my IP and use service verbatim
 
   if ((status = getaddrinfo(NULL, TEAM_PORT, &hints, &res)) != 0) {
-    fprintf(stderr, "Error occurred:%s\n", gai_strerror(status));
+    error("Error occurred:%s\n", gai_strerror(status));
     exit(1);
   }
 
   if ((sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) ==
       -1) {
-    fprintf(stderr, "Could not create socket!\n");
-    fprintf(stderr, "errno %d: %s\n", errno, strerror(errno));
+    error("Could not create socket!");
+    error("errno %d: %s", errno, strerror(errno));
     exit(1);
   }
-  printf("Socket created\n");
+  debug("Socket created");
 
   // Reuse previous address in case the server was restarted
   int yes = 1;
   if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1) {
-    fprintf(stderr, "setsockopt error!\n");
-    fprintf(stderr, "errno %d: %s\n", errno, strerror(errno));
+    error("setsockopt error!");
+    error("errno %d: %s", errno, strerror(errno));
     exit(1);
   }
 
-  printf("Set socket to reuse previous addres\n");
+  debug("Set socket to reuse previous addres\n");
   // Bind the socket to our port (set by calling getaddrinfo)
   if (bind(sockfd, res->ai_addr, res->ai_addrlen) == -1) {
-    fprintf(stderr, "bind error!\n");
-    fprintf(stderr, "errno %d: %s\n", errno, strerror(errno));
+    error("bind error!");
+    error("errno %d: %s", errno, strerror(errno));
     exit(1);
   }
 
-  printf("Listening for connections...\n");
+  debug("Listening for connections...");
   // Listen for incoming connections (max 10 at a time)
   if (listen(sockfd, 10) == -1) {
-    fprintf(stderr, "listen error!\n");
-    fprintf(stderr, "errno %d: %s\n", errno, strerror(errno));
+    error("listen error!");
+    error("errno %d: %s", errno, strerror(errno));
     exit(1);
   }
 
@@ -69,15 +69,15 @@ int main(int argc, char **argv) {
   socklen_t addr_size;
 
   // Blocks until the first connection is made
-  // printf("Accepting connection...\n");
+  debug("Accepting connection...");
   if ((newsockfd =
            accept(sockfd, (struct sockaddr *)&remote_addr, &addr_size)) == -1) {
-    fprintf(stderr, "accept error!\n");
-    fprintf(stderr, "errno %d: %s\n", errno, strerror(errno));
+    error("accept error!");
+    error("errno %d: %s", errno, strerror(errno));
     exit(1);
   }
 
-  printf("Connection accepted\nWaiting for messages...\n");
+  debug("Connection accepted. Waiting for messages...");
 
   char *buf;
   // Keep connection open as long as the client is connected
@@ -85,11 +85,12 @@ int main(int argc, char **argv) {
     // We only want 3 bytes, in the form "xy#", where x and y are digits
     int cmd = atoi(buf);
     printf("cmd: %s\n", buf);
+    // free(buf);
     char *response_buf = malloc(sizeof(char) * 25);
     if (cmd != 4) {
-      strcpy(response_buf, "Command not implemented");
+      strcpy(response_buf, "Command not implemented\n");
     } else {
-      strcpy(response_buf, "Command implemented");
+      strcpy(response_buf, "Command implemented\n");
     }
 
     send(newsockfd, response_buf, strlen(response_buf), 0);

@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,6 +13,8 @@
 #include "./shared.h"
 
 #define TEAM_PORT "22034"
+
+void *handle_connection(void *);
 
 int main(int argc, char **argv) {
   printf("Starting IPv4 server...\n");
@@ -66,7 +69,7 @@ int main(int argc, char **argv) {
   socklen_t addr_size;
 
   while (true) {
-    // Blocks until the first connection is made
+    // Blocks until a connection is initiated
     debug("Accepting connection...");
     if ((newsockfd = accept(sockfd, (struct sockaddr *)&remote_addr,
                             &addr_size)) == -1) {
@@ -74,32 +77,52 @@ int main(int argc, char **argv) {
       exit(1);
     }
 
-    debug("Connection accepted. Waiting for messages...");
-
-    char *buf;
-    // Keep connection open as long as the client is connected
-    while (strlen(buf = receive(newsockfd, 3)) != 0) {
-      // We only want 3 bytes, in the form "xy#", where x and y are digits
-      int cmd = atoi(buf);
-      printf("cmd: %s\n", buf);
-      // free(buf);
-      char *response_buf = malloc(sizeof(char) * 25);
-      if (cmd != 4) {
-        strcpy(response_buf, "Command not implemented\n");
-      } else {
-        strcpy(response_buf, "Command implemented\n");
-      }
-
-      send(newsockfd, response_buf, strlen(response_buf), 0);
+    char remote_ipv4[INET_ADDRSTRLEN];
+    if (inet_ntop(AF_INET, &remote_addr, remote_ipv4, INET_ADDRSTRLEN) ==
+        NULL) {
+      error("Failed to get string representation of remote address");
     }
 
-    debug("Closing connection");
+    printf("New connection from %s\n", remote_ipv4);
 
-    free(buf);
-    close(newsockfd);
+    // Make a pthread
+    pthread_t t;
+    int *pclient = malloc(sizeof(int));
+    *pclient = newsockfd;
+    pthread_create(&t, NULL, handle_connection, pclient);
   }
 
   printf("Closing server\n");
   close(sockfd);
   return 0;
+}
+
+void *handle_connection(void *fd) {
+  int newsockfd = *(int *)fd;
+  free(fd);
+  debug("Connection accepted. Waiting for messages...");
+
+  char *buf;
+  // Keep connection open as long as the client is connected
+  while (strlen(buf = receive(newsockfd, 3)) != 0) {
+    // We only want 3 bytes, in the form "xy#", where x and y are digits
+    int cmd = atoi(buf);
+    printf("cmd: %s\n", buf);
+    // free(buf);
+    char *response_buf = malloc(sizeof(char) * 25);
+    if (cmd != 4) {
+      strcpy(response_buf, "Command not implemented\n");
+    } else {
+      strcpy(response_buf, "Command implemented\n");
+    }
+
+    send(newsockfd, response_buf, strlen(response_buf), 0);
+  }
+
+  debug("Closing connection");
+
+  free(buf);
+  close(newsockfd);
+  pthread_exit(0);
+  return NULL;
 }

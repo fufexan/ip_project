@@ -2,6 +2,7 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,10 +18,20 @@
 void *handle_connection(void *);
 int get_listener_socket(void);
 
+int sockfd;
+
+void int_handler(int sig) {
+  check(close(sockfd), "close");
+  printf("\nServer closed\n");
+
+  exit(0);
+}
+
 int main(int argc, char **argv) {
+  signal(SIGINT, int_handler);
   printf("Starting IPv4 server...\n");
 
-  int sockfd = get_listener_socket();
+  sockfd = get_listener_socket();
 
   // Get ready to accept a connection
   int newsockfd;
@@ -51,8 +62,6 @@ int main(int argc, char **argv) {
     pthread_create(&t, NULL, handle_connection, threadarg);
   }
 
-  printf("Closing server\n");
-  close(sockfd);
   return 0;
 }
 

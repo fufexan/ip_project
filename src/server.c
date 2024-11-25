@@ -51,6 +51,8 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
+  freeaddrinfo(res);
+
   debug("Listening for connections...");
   // Listen for incoming connections (max 10 at a time)
   if (listen(sockfd, 10) == -1) {
@@ -63,38 +65,41 @@ int main(int argc, char **argv) {
   struct sockaddr_storage remote_addr;
   socklen_t addr_size;
 
-  // Blocks until the first connection is made
-  debug("Accepting connection...");
-  if ((newsockfd =
-           accept(sockfd, (struct sockaddr *)&remote_addr, &addr_size)) == -1) {
-    perrno("accept error!");
-    exit(1);
-  }
-
-  debug("Connection accepted. Waiting for messages...");
-
-  char *buf;
-  // Keep connection open as long as the client is connected
-  while (strlen(buf = receive(newsockfd, 3)) != 0) {
-    // We only want 3 bytes, in the form "xy#", where x and y are digits
-    int cmd = atoi(buf);
-    printf("cmd: %s\n", buf);
-    // free(buf);
-    char *response_buf = malloc(sizeof(char) * 25);
-    if (cmd != 4) {
-      strcpy(response_buf, "Command not implemented\n");
-    } else {
-      strcpy(response_buf, "Command implemented\n");
+  while (true) {
+    // Blocks until the first connection is made
+    debug("Accepting connection...");
+    if ((newsockfd = accept(sockfd, (struct sockaddr *)&remote_addr,
+                            &addr_size)) == -1) {
+      perrno("accept error!");
+      exit(1);
     }
 
-    send(newsockfd, response_buf, strlen(response_buf), 0);
+    debug("Connection accepted. Waiting for messages...");
+
+    char *buf;
+    // Keep connection open as long as the client is connected
+    while (strlen(buf = receive(newsockfd, 3)) != 0) {
+      // We only want 3 bytes, in the form "xy#", where x and y are digits
+      int cmd = atoi(buf);
+      printf("cmd: %s\n", buf);
+      // free(buf);
+      char *response_buf = malloc(sizeof(char) * 25);
+      if (cmd != 4) {
+        strcpy(response_buf, "Command not implemented\n");
+      } else {
+        strcpy(response_buf, "Command implemented\n");
+      }
+
+      send(newsockfd, response_buf, strlen(response_buf), 0);
+    }
+
+    debug("Closing connection");
+
+    free(buf);
+    close(newsockfd);
   }
 
   printf("Closing server\n");
-
-  free(buf);
-  close(newsockfd);
   close(sockfd);
-  freeaddrinfo(res);
   return 0;
 }

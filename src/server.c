@@ -30,17 +30,15 @@ int main(int argc, char **argv) {
   while (true) {
     // Blocks until a connection is initiated
     debug("Accepting connection...");
-    if ((newsockfd = accept(sockfd, (struct sockaddr *)&remote_addr,
-                            &addr_size)) == -1) {
-      perrno("accept error!");
-      exit(1);
-    }
+    newsockfd =
+        check(accept(sockfd, (struct sockaddr *)&remote_addr, &addr_size),
+              "accept error!");
 
     char remote_ipv4[INET_ADDRSTRLEN];
 
-    if (inet_ntop(remote_addr.ss_family,
-                  get_in_addr((struct sockaddr *)&remote_addr), remote_ipv4,
-                  INET_ADDRSTRLEN)) {
+    if (!inet_ntop(remote_addr.ss_family,
+                   get_in_addr((struct sockaddr *)&remote_addr), remote_ipv4,
+                   INET_ADDRSTRLEN)) {
       error("Failed to get string representation of remote address");
     }
 
@@ -108,7 +106,7 @@ int get_listener_socket(void) {
     exit(1);
   }
 
-  // Find the first IPv4 address
+  // Find the first IPv4 address and try to bind to it
   for (p = ai; p != NULL; p = p->ai_next) {
     listener = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
     if (listener < 0) {
@@ -136,9 +134,7 @@ int get_listener_socket(void) {
   }
 
   // Listen
-  if (listen(listener, 10) == -1) {
-    return -1;
-  }
+  check(listen(listener, 10), "Could not start listening");
 
   return listener;
 }

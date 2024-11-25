@@ -3,6 +3,16 @@
 
 bool DEBUG = false, DEBUG_SET = false;
 
+// Check result of a command, and return its return value if it did not error
+int check(int result, const char *message) {
+  if (result == -1) {
+    perrno(message);
+    exit(1);
+  }
+
+  return result;
+}
+
 // Get sockaddr, IPv4 or IPv6
 void *get_in_addr(struct sockaddr *sa) {
   if (sa->sa_family == AF_INET) {
@@ -18,7 +28,7 @@ char *receive(int sockfd, unsigned int num_bytes) {
   // /proc/sys/net/core/rmem_max  int step_size = 256000;
   int step_size = 256000;
   int cursor = 0;
-  int bytes_rx, total_bytes_rx = 0;
+  int bytes_rx = 0, total_bytes_rx = 0;
   int len_rx = step_size;
   void *buf = malloc(sizeof(char) * len_rx), *new_buf;
 
@@ -53,11 +63,7 @@ char *receive(int sockfd, unsigned int num_bytes) {
   } while (bytes_rx > 0);
 
   // Error checking
-  if (bytes_rx == -1) {
-    error("Error receiving data!");
-    error("errno %d: %s", errno, strerror(errno));
-    exit(1);
-  }
+  check(bytes_rx, "Error receiving data");
 
   if (bytes_rx == 0)
     printf("Remote has closed the connection\n");

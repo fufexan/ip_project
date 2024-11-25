@@ -77,18 +77,16 @@ int main(int argc, char **argv) {
   debug("IPv6 address of %s: %s", host, get_ipv6_addrstr(res));
 
   // Now that we have an IP, create a socket
-  if ((sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) ==
-      -1) {
-    perrno("Could not create socket!");
-    exit(1);
-  }
+  sockfd = check(socket(res->ai_family, res->ai_socktype, res->ai_protocol),
+                 "Could not create socket!");
   debug("Socket created");
 
   // Connect to the remote over socket
-  if (connect(sockfd, res->ai_addr, res->ai_addrlen) == -1) {
-    perrno("Could not connect to %s!", host);
-    exit(1);
-  }
+  char *str = malloc(sizeof(char) * (64 + INET6_ADDRSTRLEN));
+  sprintf(str, "Could not connect to %s!", host);
+  check(connect(sockfd, res->ai_addr, res->ai_addrlen), str);
+  free(str);
+
   debug("Connection established");
 
   // servinfo is no longer needed, dispose
@@ -99,10 +97,7 @@ int main(int argc, char **argv) {
   int len_tx = strlen(message);
 
   debug("Sending HTTP request '%s'...", message);
-  if (send(sockfd, message, len_tx, 0) == -1) {
-    perrno("Sending HTTP request failed!");
-    exit(1);
-  }
+  check(send(sockfd, message, len_tx, 0), "Sending HTTP request failed!");
 
   // Receive response
   // 0 num_bytes because we don't expect a fixed response size

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+int check(int, const char *);
 void *get_in_addr(struct sockaddr *);
 char *receive(int sockfd, unsigned int num_bytes);
 char **split_http_response(char *buf, long len);

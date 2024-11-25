@@ -30,7 +30,8 @@ char *receive(int sockfd, unsigned int num_bytes) {
   int cursor = 0;
   int bytes_rx = 0, total_bytes_rx = 0;
   int len_rx = step_size;
-  void *buf = malloc(sizeof(char) * len_rx), *new_buf;
+  void *buf = malloc(sizeof(char) * len_rx);
+  void *new_buf;
 
   do {
     // We only want num_bytes, if non-zero
@@ -42,6 +43,12 @@ char *receive(int sockfd, unsigned int num_bytes) {
     // Receive only as much as the amount of free space we have in the buffer
     bytes_rx = recv(sockfd, buf + cursor, len_rx - total_bytes_rx, 0);
     debug("received %d bytes", bytes_rx);
+
+    // Error checking
+    if (check(bytes_rx, "Error receiving data") < 0) {
+      free(buf);
+      buf = NULL;
+    }
 
     // Keep count of the bytes received
     total_bytes_rx += bytes_rx;
@@ -58,12 +65,13 @@ char *receive(int sockfd, unsigned int num_bytes) {
         new_buf = NULL;      // Clear new_buf
         len_rx += step_size; // Increase buffer length
         debug("Extended buffer to length %d", len_rx);
+      } else {
+        error("realloc failed!");
+        free(buf);
+        buf = NULL;
       }
     }
   } while (bytes_rx > 0);
-
-  // Error checking
-  check(bytes_rx, "Error receiving data");
 
   if (bytes_rx == 0)
     printf("Remote has closed the connection\n");
@@ -76,24 +84,28 @@ char **split_http_response(char *buf, long len) {
 
   char *del = "\r\n\r\n";
   char *delimiter = strstr(buf, del);
-  char *headers, *content;
 
   // If we couldn't find the delimiter, then the response is empty
   if (!delimiter) {
     error("Empty response!");
+    free(container);
     exit(1);
   }
 
-  // Set the headers to the buffer
-  headers = buf;
-  // "split" response into two by only printing the buffer up to \0
-  *delimiter = '\0';
-  // Only start content after the whole delimiter, until the end of the buffer
-  // (or the first \0)
-  content = buf + strlen(headers) + strlen(del);
+  // Allocate memory for headers and content
+  size_t headers_len = delimiter - buf;
+  container[0] = malloc(headers_len + 1);
+  strncpy(container[0], buf, headers_len);
+  container[0][headers_len] = '\0'; // Null-terminate headers
 
-  container[0] = headers;
-  container[1] = content;
+  size_t content_len = len - (headers_len + strlen(del));
+  container[1] = malloc(content_len + 1);
+  strncpy(container[1], buf, content_len);
+  container[1][headers_len] = '\0'; // Null-terminate headers
+
+  // We're done using buf
+  free(buf);
+
   return container;
 }
 

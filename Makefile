@@ -2,9 +2,9 @@
 CC = gcc
 
 # OBJS specifies which files to compile as part of the project
-CLIENT_OBJS = src/client.c src/destinations.c src/shared.c
+CLIENT_OBJS = src/client.c src/destinations.c
 # HEADERS specifies the header files
-HEADERS = src/destinations.h src/shared.h
+HEADERS = src/destinations.h src/shared.h src/client.h
 
 SERVER_OBJS = src/server.c src/shared.c
 
@@ -12,11 +12,11 @@ SERVER_OBJS = src/server.c src/shared.c
 OBJ_NAME = main
 
 #This is the target that compiles our executable
-# all : $(CLIENT_OBJS) $(SERVER_OBJS)
-# 	$(CC) $(SERVER_OBJS) $(CLIENT_OBJS) $(HEADERS) -ggdb -Wall -o $(OBJ_NAME)
+all : $(CLIENT_OBJS) $(SERVER_OBJS)
+	$(CC) $(SERVER_OBJS) $(CLIENT_OBJS) $(HEADERS) -ggdb -Wall -o $(OBJ_NAME)
 
-client : $(CLIENT_OBJS)
-	$(CC) $(CLIENT_OBJS) $(HEADERS) -ggdb -Wall -o client
+# client : $(CLIENT_OBJS)
+# 	$(CC) $(CLIENT_OBJS) $(HEADERS) -ggdb -Wall -o client
 
-server : $(SERVER_OBJS)
-	$(CC) $(SERVER_OBJS) $(HEADERS) -ggdb -Wall -o server
+# server : $(SERVER_OBJS)
+# 	$(CC) $(SERVER_OBJS) $(HEADERS) -ggdb -Wall -o server

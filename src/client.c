@@ -4,8 +4,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "./destinations.h"
-#include "./shared.h"
+#include "client.h"
+#include "destinations.h"
+#include "shared.h"
 
 struct addrinfo *get_ipv6_addrinfo(const char *name, const char *service) {
   struct addrinfo hints, *res;
@@ -52,29 +53,19 @@ char *get_ipv6_addrstr(struct addrinfo *res) {
   return hostaddr;
 }
 
-int main(int argc, char **argv) {
+char *client(int cmd) {
   printf("Starting IPv6 client...\n");
 
   // 64 bytes should be enough
   char *host = calloc(64, sizeof(char));
   int sockfd;
 
-  // Default host
-  strcpy(host, "google.com");
-
-  if (argc > 1) {
-    if (atoi(argv[1]) >= 0 && atoi(argv[1]) < DEST_MAX + 1) {
-      strcpy(host, destinations[atoi(argv[1])]);
-    } else {
-      error("Invalid hostname! Please pick a number between 0 and %d",
-            DEST_MAX);
-
-      printf("Using host %s\n", host);
-    }
-  }
+  strcpy(host, destinations[cmd]);
 
   struct addrinfo *res = get_ipv6_addrinfo(host, "http");
-  debug("IPv6 address of %s: %s", host, get_ipv6_addrstr(res));
+  char *addr_ipv6 = get_ipv6_addrstr(res);
+  debug("IPv6 address of %s: %s", host, addr_ipv6);
+  free(addr_ipv6);
 
   // Now that we have an IP, create a socket
   sockfd = check(socket(res->ai_family, res->ai_socktype, res->ai_protocol),
@@ -123,7 +114,29 @@ int main(int argc, char **argv) {
   // Print headers
   printf("%s\n", headers);
   // Save content to `{host}.http`
-  save_file(content, strlen(content), strcat(host, ".html"));
+  char *filename = malloc(strlen(host) + 6); // ".html\0"
+  sprintf(filename, "%s.html", host);
 
-  return 0;
+  if (filename == NULL) {
+    perror("malloc");
+    exit(1);
+  }
+
+  save_file(content, strlen(content), filename);
+
+  // We're done with host
+  free(host);
+  free(filename);
+
+  // Create temporary pointer and copy data in memory
+  char *html = malloc(strlen(content) + 1);
+  strcpy(html, content);
+
+  // Free container
+  free(headers);
+  free(content);
+  free(container);
+
+  // Return the temporary pointer and let the caller handle it
+  return html;
 }

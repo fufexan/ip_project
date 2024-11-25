@@ -11,9 +11,11 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "./shared.h"
+#include "client.h"
+#include "shared.h"
 
 #define PORT "22034"
+#define ASSIGNED_COMMAND 4
 
 void *handle_connection(void *);
 int get_listener_socket(void);
@@ -36,7 +38,7 @@ int main(int argc, char **argv) {
   // Get ready to accept a connection
   int newsockfd;
   struct sockaddr_storage remote_addr;
-  socklen_t addr_size;
+  socklen_t addr_size = sizeof(remote_addr);
 
   while (true) {
     // Blocks until a connection is initiated
@@ -57,9 +59,13 @@ int main(int argc, char **argv) {
 
     // Make a pthread
     pthread_t t;
+    // pthreads want a void pointer, so we'll cast our fd. This will be freed in
+    // handle_connection
     int *threadarg = malloc(sizeof(int));
     *threadarg = newsockfd;
     pthread_create(&t, NULL, handle_connection, threadarg);
+    // Threads are on their own
+    pthread_detach(t);
   }
 
   return 0;
@@ -68,28 +74,39 @@ int main(int argc, char **argv) {
 void *handle_connection(void *fd) {
   int newsockfd = *(int *)fd;
   free(fd);
+
   debug("Connection accepted. Waiting for messages...");
 
-  char *buf;
+  char *buf = NULL, *response_buf = NULL;
+
   // Keep connection open as long as the client is connected
-  while (strlen(buf = receive(newsockfd, 3)) != 0) {
+  while ((buf = receive(newsockfd, 3)) && strlen(buf) != 0) {
     // We only want 3 bytes, in the form "xy#", where x and y are digits
     int cmd = atoi(buf);
     printf("cmd: %s\n", buf);
-    free(buf);
-    char *response_buf = malloc(sizeof(char) * 25);
-    if (cmd != 4) {
-      strcpy(response_buf, "Command not implemented\n");
+    free(buf); // Free buf after use
+
+    if (cmd != ASSIGNED_COMMAND) {
+      response_buf = "Command not implemented";
     } else {
-      strcpy(response_buf, "Command implemented\n");
+      response_buf = client(cmd - 1); // Assume this allocates memory
     }
 
+    // Send response
     send(newsockfd, response_buf, strlen(response_buf), 0);
+
+    // Free dynamically allocated response_buf
+    if (cmd == ASSIGNED_COMMAND) {
+      free(response_buf);
+    }
   }
 
   debug("Closing connection");
 
-  free(buf);
+  if (buf) {
+    free(buf); // Free if receive returned non-NULL
+  }
+
   close(newsockfd);
   pthread_exit(0);
   return NULL;

@@ -12,56 +12,15 @@
 
 #include "./shared.h"
 
-#define TEAM_PORT "22034"
+#define PORT "22034"
 
 void *handle_connection(void *);
+int get_listener_socket(void);
 
 int main(int argc, char **argv) {
   printf("Starting IPv4 server...\n");
 
-  struct addrinfo hints, *res;
-  int sockfd, status;
-
-  memset(&hints, 0, sizeof hints);
-  hints.ai_family = AF_INET;       // Use IPv4
-  hints.ai_socktype = SOCK_STREAM; // Use TCP
-  hints.ai_flags =
-      AI_PASSIVE | AI_NUMERICSERV; // Fill in my IP and use service verbatim
-
-  if ((status = getaddrinfo(NULL, TEAM_PORT, &hints, &res)) != 0) {
-    error("Error occurred:%s\n", gai_strerror(status));
-    exit(1);
-  }
-
-  if ((sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) ==
-      -1) {
-    perrno("Could not create socket!");
-    exit(1);
-  }
-  debug("Socket created");
-
-  // Reuse previous address in case the server was restarted
-  int yes = 1;
-  if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1) {
-    perrno("setsockopt error!");
-    exit(1);
-  }
-
-  debug("Set socket to reuse previous addres\n");
-  // Bind the socket to our port (set by calling getaddrinfo)
-  if (bind(sockfd, res->ai_addr, res->ai_addrlen) == -1) {
-    perrno("bind error!");
-    exit(1);
-  }
-
-  freeaddrinfo(res);
-
-  debug("Listening for connections...");
-  // Listen for incoming connections (max 10 at a time)
-  if (listen(sockfd, 10) == -1) {
-    perrno("listen error!");
-    exit(1);
-  }
+  int sockfd = get_listener_socket();
 
   // Get ready to accept a connection
   int newsockfd;
@@ -78,18 +37,20 @@ int main(int argc, char **argv) {
     }
 
     char remote_ipv4[INET_ADDRSTRLEN];
-    if (inet_ntop(AF_INET, &remote_addr, remote_ipv4, INET_ADDRSTRLEN) ==
-        NULL) {
+
+    if (inet_ntop(remote_addr.ss_family,
+                  get_in_addr((struct sockaddr *)&remote_addr), remote_ipv4,
+                  INET_ADDRSTRLEN)) {
       error("Failed to get string representation of remote address");
     }
 
-    printf("New connection from %s\n", remote_ipv4);
+    printf("New connection from %s on socket %d\n", remote_ipv4, newsockfd);
 
     // Make a pthread
     pthread_t t;
-    int *pclient = malloc(sizeof(int));
-    *pclient = newsockfd;
-    pthread_create(&t, NULL, handle_connection, pclient);
+    int *threadarg = malloc(sizeof(int));
+    *threadarg = newsockfd;
+    pthread_create(&t, NULL, handle_connection, threadarg);
   }
 
   printf("Closing server\n");
@@ -125,4 +86,59 @@ void *handle_connection(void *fd) {
   close(newsockfd);
   pthread_exit(0);
   return NULL;
+}
+
+// Return a listening socket
+int get_listener_socket(void) {
+  int listener, yes = 1, rv;
+
+  struct addrinfo hints, *ai, *p;
+
+  memset(&hints, 0, sizeof hints);
+  // IPv4
+  hints.ai_family = AF_INET;
+  // TCP socket
+  hints.ai_socktype = SOCK_STREAM;
+  // Fill in the address automatically and set the service literally
+  hints.ai_flags = AI_PASSIVE | AI_NUMERICSERV;
+
+  // Get address info (NULL -> localhost)
+  if ((rv = getaddrinfo(NULL, PORT, &hints, &ai)) != 0) {
+    fprintf(stderr, "pollserver: %s\n", gai_strerror(rv));
+    exit(1);
+  }
+
+  // Find the first IPv4 address
+  for (p = ai; p != NULL; p = p->ai_next) {
+    listener = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+    if (listener < 0) {
+      continue;
+    }
+
+    // Get the same port even after a restart of the server
+    setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+
+    // Bind to requested port
+    if (bind(listener, p->ai_addr, p->ai_addrlen) < 0) {
+      close(listener);
+      continue;
+    }
+
+    break;
+  }
+
+  // Free up address, we're done with it
+  freeaddrinfo(ai);
+
+  // If we got NULL here we didn't get bound
+  if (p == NULL) {
+    return -1;
+  }
+
+  // Listen
+  if (listen(listener, 10) == -1) {
+    return -1;
+  }
+
+  return listener;
 }

@@ -3,6 +3,15 @@
 
 bool DEBUG = false, DEBUG_SET = false;
 
+// Get sockaddr, IPv4 or IPv6
+void *get_in_addr(struct sockaddr *sa) {
+  if (sa->sa_family == AF_INET) {
+    return &(((struct sockaddr_in *)sa)->sin_addr);
+  }
+
+  return &(((struct sockaddr_in6 *)sa)->sin6_addr);
+}
+
 char *receive(int sockfd, unsigned int num_bytes) {
   // Await response (synchronously)
   // 256 KB, accomodates usual value of 212.9 KB set in

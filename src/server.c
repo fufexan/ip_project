@@ -76,7 +76,7 @@ void *handle_connection(void *fd) {
     // We only want 3 bytes, in the form "xy#", where x and y are digits
     int cmd = atoi(buf);
     printf("cmd: %s\n", buf);
-    // free(buf);
+    free(buf);
     char *response_buf = malloc(sizeof(char) * 25);
     if (cmd != 4) {
       strcpy(response_buf, "Command not implemented\n");

@@ -92,16 +92,17 @@ char **split_http_response(char *buf, long len) {
     exit(1);
   }
 
-  // Allocate memory for headers and content
+  // Allocate memory and copy headers
   size_t headers_len = delimiter - buf;
   container[0] = malloc(headers_len + 1);
   strncpy(container[0], buf, headers_len);
   container[0][headers_len] = '\0'; // Null-terminate headers
 
+  // Allocate memory and copy content
   size_t content_len = len - (headers_len + strlen(del));
   container[1] = malloc(content_len + 1);
-  strncpy(container[1], buf, content_len);
-  container[1][headers_len] = '\0'; // Null-terminate headers
+  strncpy(container[1], delimiter + strlen(del), content_len);
+  container[1][headers_len] = '\0'; // Null-terminate content
 
   // We're done using buf
   free(buf);

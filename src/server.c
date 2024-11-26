@@ -94,7 +94,7 @@ void *handle_connection(void *fd) {
     }
 
     // Send response
-    send(newsockfd, response_buf, strlen(response_buf), 0);
+    send_all(newsockfd, response_buf, strlen(response_buf));
 
     // Free dynamically allocated response_buf
     if (cmd == ASSIGNED_COMMAND) {

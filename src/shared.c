@@ -99,6 +99,19 @@ char *recv_all(int sockfd, unsigned int num_bytes) {
   return buf;
 }
 
+void send_all(int sockfd, char *buf, unsigned int num_bytes) {
+  int bytes_tx = 0;
+  int total_bytes_tx = 0;
+
+  while (num_bytes - total_bytes_tx > 0) {
+    bytes_tx =
+        check(send(sockfd, buf + total_bytes_tx, num_bytes - total_bytes_tx, 0),
+              "send failed");
+    total_bytes_tx += bytes_tx;
+    debug("sent %d bytes", bytes_tx);
+  }
+}
+
 char **split_http_response(char *buf, long len) {
   char **container = malloc_s(2 * sizeof(char *));
 

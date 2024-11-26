@@ -13,6 +13,19 @@ int check(int result, const char *message) {
   return result;
 }
 
+// Checks the return value of malloc, to ensure we don't try to use unallocated
+// memory
+void *malloc_s(size_t n) {
+  void *p = malloc(n);
+
+  if (p == NULL) {
+    error("Failed to allocate %zu bytes", n);
+    abort();
+  }
+
+  return p;
+}
+
 // Get sockaddr, IPv4 or IPv6
 void *get_in_addr(struct sockaddr *sa) {
   if (sa->sa_family == AF_INET) {
@@ -30,7 +43,7 @@ char *receive(int sockfd, unsigned int num_bytes) {
   int cursor = 0;
   int bytes_rx = 0, total_bytes_rx = 0;
   int len_rx = step_size;
-  void *buf = malloc(sizeof(char) * len_rx);
+  void *buf = malloc_s(sizeof(char) * len_rx);
   void *new_buf;
 
   do {
@@ -80,7 +93,7 @@ char *receive(int sockfd, unsigned int num_bytes) {
 }
 
 char **split_http_response(char *buf, long len) {
-  char **container = malloc(2 * sizeof(char *));
+  char **container = malloc_s(2 * sizeof(char *));
 
   char *del = "\r\n\r\n";
   char *delimiter = strstr(buf, del);
@@ -94,13 +107,13 @@ char **split_http_response(char *buf, long len) {
 
   // Allocate memory and copy headers
   size_t headers_len = delimiter - buf;
-  container[0] = malloc(headers_len + 1);
+  container[0] = malloc_s(headers_len + 1);
   strncpy(container[0], buf, headers_len);
   container[0][headers_len] = '\0'; // Null-terminate headers
 
   // Allocate memory and copy content
   size_t content_len = len - (headers_len + strlen(del));
-  container[1] = malloc(content_len + 1);
+  container[1] = malloc_s(content_len + 1);
   strncpy(container[1], delimiter + strlen(del), content_len);
   container[1][headers_len] = '\0'; // Null-terminate content
 

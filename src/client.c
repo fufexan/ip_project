@@ -26,19 +26,15 @@ struct addrinfo *get_ipv6_addrinfo(const char *name, const char *service) {
 
 char *get_ipv6_addrstr(struct addrinfo *res) {
   struct addrinfo *p; // iterator
-  char *hostaddr = malloc(INET6_ADDRSTRLEN);
+  char *hostaddr = malloc_s(INET6_ADDRSTRLEN);
   bool addr_found = false;
 
   // Check all results, stop on first valid address
   for (p = res; p != NULL && !addr_found; p = p->ai_next) {
-    struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)p->ai_addr;
-    struct in6_addr *addr = &(ipv6->sin6_addr);
-
     // convert the IP to a string and print it
-    const char *ptr = inet_ntop(AF_INET6, addr, hostaddr, INET6_ADDRSTRLEN);
-
-    if (ptr == NULL) {
-      perrno("Failed to get string representation of IPv6 address!");
+    if (!inet_ntop(AF_INET6, get_in_addr((struct sockaddr *)&res), hostaddr,
+                   INET6_ADDRSTRLEN)) {
+      perror("Failed to get string representation of remote address");
     } else {
       debug("%s", hostaddr);
       addr_found = true;
@@ -54,10 +50,10 @@ char *get_ipv6_addrstr(struct addrinfo *res) {
 }
 
 char *client(int cmd) {
-  printf("Starting IPv6 client...\n");
+  debug("Starting IPv6 client...\n");
 
   // 64 bytes should be enough
-  char *host = calloc(64, sizeof(char));
+  char *host = malloc_s(64 * sizeof(char));
   int sockfd;
 
   strcpy(host, destinations[cmd]);
@@ -73,7 +69,7 @@ char *client(int cmd) {
   debug("Socket created");
 
   // Connect to the remote over socket
-  char *str = malloc(sizeof(char) * (64 + INET6_ADDRSTRLEN));
+  char *str = malloc_s(sizeof(char) * (64 + INET6_ADDRSTRLEN));
   sprintf(str, "Could not connect to %s!", host);
   check(connect(sockfd, res->ai_addr, res->ai_addrlen), str);
   free(str);
@@ -114,13 +110,8 @@ char *client(int cmd) {
   // Print headers
   printf("%s\n", headers);
   // Save content to `{host}.http`
-  char *filename = malloc(strlen(host) + 6); // ".html\0"
+  char *filename = malloc_s(strlen(host) + 6); // ".html\0"
   sprintf(filename, "%s.html", host);
-
-  if (filename == NULL) {
-    perror("malloc");
-    exit(1);
-  }
 
   save_file(content, strlen(content), filename);
 
@@ -129,7 +120,7 @@ char *client(int cmd) {
   free(filename);
 
   // Create temporary pointer and copy data in memory
-  char *html = malloc(strlen(content) + 1);
+  char *html = malloc_s(strlen(content) + 1);
   strcpy(html, content);
 
   // Free container

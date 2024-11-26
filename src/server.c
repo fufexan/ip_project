@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
     pthread_t t;
     // pthreads want a void pointer, so we'll cast our fd. This will be freed in
     // handle_connection
-    int *threadarg = malloc(sizeof(int));
+    int *threadarg = malloc_s(sizeof(int));
     *threadarg = newsockfd;
     pthread_create(&t, NULL, handle_connection, threadarg);
     // Threads are on their own

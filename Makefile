@@ -13,7 +13,7 @@ OBJ_NAME = main
 
 #This is the target that compiles our executable
 all : $(CLIENT_OBJS) $(SERVER_OBJS)
-	$(CC) $(SERVER_OBJS) $(CLIENT_OBJS) $(HEADERS) -ggdb -Wall -o $(OBJ_NAME)
+	$(CC) $(SERVER_OBJS) $(CLIENT_OBJS) $(HEADERS) -pthread -ggdb -Wall -o $(OBJ_NAME)
 
 # client : $(CLIENT_OBJS)
 # 	$(CC) $(CLIENT_OBJS) $(HEADERS) -ggdb -Wall -o client

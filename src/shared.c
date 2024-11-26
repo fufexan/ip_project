@@ -89,6 +89,13 @@ char *recv_all(int sockfd, unsigned int num_bytes) {
   if (bytes_rx == 0)
     printf("Remote has closed the connection\n");
 
+  if (num_bytes > 0 && total_bytes_rx > num_bytes) {
+    void *newbuf = malloc_s(num_bytes);
+    strncpy(newbuf, buf, num_bytes);
+    free(buf);
+    buf = newbuf;
+  }
+
   return buf;
 }
 

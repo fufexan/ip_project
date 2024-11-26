@@ -88,7 +88,7 @@ char *client(int cmd) {
 
   // Receive response
   // 0 num_bytes because we don't expect a fixed response size
-  char *buf = receive(sockfd, 0);
+  char *buf = recv_all(sockfd, 0);
   long total_bytes_rx = strlen(buf);
 
   // Close socket; we're done using it

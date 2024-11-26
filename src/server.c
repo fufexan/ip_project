@@ -80,7 +80,7 @@ void *handle_connection(void *fd) {
   char *buf = NULL, *response_buf = NULL;
 
   // Keep connection open as long as the client is connected
-  while ((buf = receive(newsockfd, 3)) && strlen(buf) != 0) {
+  while ((buf = recv_all(newsockfd, 3)) && strlen(buf) != 0) {
     // We only want 3 bytes, in the form "xy#", where x and y are digits
     int cmd = atoi(buf);
     printf("cmd: %s\n", buf);
@@ -105,7 +105,7 @@ void *handle_connection(void *fd) {
   debug("Closing connection");
 
   if (buf) {
-    free(buf); // Free if receive returned non-NULL
+    free(buf); // Free if recv_all returned non-NULL
   }
 
   close(newsockfd);

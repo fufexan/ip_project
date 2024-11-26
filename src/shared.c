@@ -35,7 +35,7 @@ void *get_in_addr(struct sockaddr *sa) {
   return &(((struct sockaddr_in6 *)sa)->sin6_addr);
 }
 
-char *receive(int sockfd, unsigned int num_bytes) {
+char *recv_all(int sockfd, unsigned int num_bytes) {
   // Await response (synchronously)
   // 256 KB, accomodates usual value of 212.9 KB set in
   // /proc/sys/net/core/rmem_max  int step_size = 256000;

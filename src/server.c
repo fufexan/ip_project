@@ -89,7 +89,8 @@ void *handle_connection(void *fd) {
     if (cmd != ASSIGNED_COMMAND) {
       response_buf = "Command not implemented";
     } else {
-      response_buf = client(cmd - 1); // Assume this allocates memory
+      // We receive allocated memory that we have to free
+      response_buf = client(cmd);
     }
 
     // Send response

@@ -8,14 +8,17 @@
 #include "destinations.h"
 #include "shared.h"
 
-struct addrinfo *get_ipv6_addrinfo(const char *name, const char *service) {
+int AF_FAMILY = AF_INET6;
+bool IPV4 = false;
+
+struct addrinfo *get_ip_addrinfo(const char *name, const char *service) {
   struct addrinfo hints, *res;
   int status;
 
   memset(&hints, 0, sizeof hints); // zero-init the struct
-  hints.ai_family = AF_INET6;      // we only want IPv6
+  hints.ai_family = AF_FAMILY;     // we only want IPv6
   hints.ai_socktype = SOCK_STREAM; // TCP stream sockets
-  hints.ai_flags = AI_PASSIVE;     // autofill IP
+  hints.ai_flags = 0;
 
   if ((status = getaddrinfo(name, "http", &hints, &res)) != 0) {
     error("getaddrinfo error: %s\n", gai_strerror(status));
@@ -24,25 +27,28 @@ struct addrinfo *get_ipv6_addrinfo(const char *name, const char *service) {
   return res;
 }
 
-char *get_ipv6_addrstr(struct addrinfo *res) {
-  struct addrinfo *p; // iterator
-  char *hostaddr = malloc_s(INET6_ADDRSTRLEN);
+char *get_ip_addrstr(struct addrinfo *res) {
+  int hostlen = IPV4 ? INET_ADDRSTRLEN : INET6_ADDRSTRLEN;
+  char *hostaddr = malloc_s(hostlen * sizeof(char));
   bool addr_found = false;
 
   // Check all results, stop on first valid address
-  for (p = res; p != NULL && !addr_found; p = p->ai_next) {
+  for (struct addrinfo *p = res; p != NULL && !addr_found; p = p->ai_next) {
     // convert the IP to a string and print it
-    if (!inet_ntop(AF_INET6, get_in_addr((struct sockaddr *)&res), hostaddr,
-                   INET6_ADDRSTRLEN)) {
+    debug("af_family: %d", AF_FAMILY);
+    void *in_addr = get_in_addr(p->ai_addr);
+    const char *ntop = inet_ntop(AF_FAMILY, in_addr, hostaddr, hostlen);
+
+    if (!ntop) {
       perror("Failed to get string representation of remote address");
     } else {
-      debug("%s", hostaddr);
+      debug("%s", ntop);
       addr_found = true;
     }
   }
 
   if (!addr_found) {
-    error("Could not find a valid IPv6 address!");
+    error("Could not find a valid IP%s address!", IPV4 ? "v4" : "v6");
     exit(1);
   }
 
@@ -50,7 +56,14 @@ char *get_ipv6_addrstr(struct addrinfo *res) {
 }
 
 char *client(int cmd) {
-  debug("Starting IPv6 client...\n");
+  debug("Starting client...\n");
+
+  // For debugging purposes, use IPv4 websites
+  char *inet_family = getenv("USE_IPV4");
+  if (inet_family) {
+    AF_FAMILY = AF_INET;
+    IPV4 = true;
+  }
 
   // 64 bytes should be enough
   char *host = malloc_s(64 * sizeof(char));
@@ -58,10 +71,10 @@ char *client(int cmd) {
 
   strcpy(host, destinations[cmd]);
 
-  struct addrinfo *res = get_ipv6_addrinfo(host, "http");
-  char *addr_ipv6 = get_ipv6_addrstr(res);
-  debug("IPv6 address of %s: %s", host, addr_ipv6);
-  free(addr_ipv6);
+  struct addrinfo *res = get_ip_addrinfo(host, "http");
+  char *addr_ip = get_ip_addrstr(res);
+  debug("IP%s address of %s: %s", IPV4 ? "v4" : "v6", host, addr_ip);
+  free(addr_ip);
 
   // Now that we have an IP, create a socket
   sockfd = check(socket(res->ai_family, res->ai_socktype, res->ai_protocol),
@@ -88,8 +101,11 @@ char *client(int cmd) {
 
   // Receive response
   // 0 num_bytes because we don't expect a fixed response size
+  long total_bytes_rx = 0;
   char *buf = recv_all(sockfd, 0);
-  long total_bytes_rx = strlen(buf);
+  if (buf != NULL) {
+    total_bytes_rx = strlen(buf);
+  }
 
   // Close socket; we're done using it
   close(sockfd);

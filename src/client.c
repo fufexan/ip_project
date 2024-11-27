@@ -49,6 +49,7 @@ char *get_ip_addrstr(struct addrinfo *res) {
 
   if (!addr_found) {
     error("Could not find a valid IP%s address!", IPV4 ? "v4" : "v6");
+    free(hostaddr);
     exit(1);
   }
 
@@ -84,7 +85,12 @@ char *client(int cmd) {
   // Connect to the remote over socket
   char *str = malloc_s(sizeof(char) * (64 + INET6_ADDRSTRLEN));
   sprintf(str, "Could not connect to %s!", host);
-  check(connect(sockfd, res->ai_addr, res->ai_addrlen), str);
+  if(connect(sockfd, res->ai_addr, res->ai_addrlen) < 0) {
+    error(str);
+    freeaddrinfo(res);
+    free(str);
+    exit(1);
+  };
   free(str);
 
   debug("Connection established");

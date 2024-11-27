@@ -26,6 +26,19 @@ void *malloc_s(size_t n) {
   return p;
 }
 
+// Checks the return value of malloc, to ensure we don't try to use unallocated
+// memory
+void *realloc_s(void *buf, size_t n) {
+  void *p = realloc(buf, n);
+
+  if (p == NULL) {
+    error("Failed to reallocate %zu bytes", n);
+    abort();
+  }
+
+  return p;
+}
+
 // Get sockaddr, IPv4 or IPv6
 void *get_in_addr(struct sockaddr *sa) {
   if (sa->sa_family == AF_INET) {
@@ -37,14 +50,11 @@ void *get_in_addr(struct sockaddr *sa) {
 
 char *recv_all(int sockfd, unsigned int num_bytes) {
   // Await response (synchronously)
-  // 256 KB, accomodates usual value of 212.9 KB set in
-  // /proc/sys/net/core/rmem_max  int step_size = 256000;
-  int step_size = 256000;
-  int cursor = 0;
-  int bytes_rx = 0, total_bytes_rx = 0;
+  // Use a small step size to demonstrate resilient behavior
+  int step_size = 10;
+  int cursor = 0, bytes_rx = 0, total_bytes_rx = 0;
   int len_rx = step_size;
-  void *buf = malloc_s(sizeof(char) * len_rx);
-  void *new_buf;
+  char *buf = malloc_s(sizeof(char) * len_rx);
 
   do {
     // We only want num_bytes, if non-zero
@@ -54,13 +64,13 @@ char *recv_all(int sockfd, unsigned int num_bytes) {
 
     // Write bytes into the next free location in the buffer
     // Receive only as much as the amount of free space we have in the buffer
-    bytes_rx = recv(sockfd, buf + cursor, len_rx - total_bytes_rx, 0);
+    bytes_rx = check(recv(sockfd, buf + cursor, len_rx - total_bytes_rx, 0),
+                     "recv failed");
     debug("received %d bytes", bytes_rx);
 
-    // Error checking
-    if (check(bytes_rx, "Error receiving data") < 0) {
-      free(buf);
-      buf = NULL;
+    if (bytes_rx == 0) {
+      debug("Remote has closed the connection");
+      break;
     }
 
     // Keep count of the bytes received
@@ -70,32 +80,29 @@ char *recv_all(int sockfd, unsigned int num_bytes) {
 
     // If the buffer is filled, increase its size
     if (total_bytes_rx == len_rx) {
-      new_buf = realloc(buf, len_rx + step_size);
-
-      // realloc may fail and return NULL
-      if (new_buf != NULL) {
-        buf = new_buf;       // Change original buffer to new buffer
-        new_buf = NULL;      // Clear new_buf
-        len_rx += step_size; // Increase buffer length
-        debug("Extended buffer to length %d", len_rx);
-      } else {
-        error("realloc failed!");
-        free(buf);
-        buf = NULL;
-      }
+      buf = realloc_s(buf, len_rx + step_size);
+      len_rx += step_size;
+      debug("Extended buffer to length %d", len_rx);
     }
   } while (bytes_rx > 0);
 
   if (bytes_rx == 0)
     printf("Remote has closed the connection\n");
 
+  // Truncate if num_bytes is specified
   if (num_bytes > 0 && total_bytes_rx > num_bytes) {
-    void *newbuf = malloc_s(num_bytes);
-    strncpy(newbuf, buf, num_bytes);
+    char *truncated_buf = malloc_s(num_bytes + 1);
+    memcpy(truncated_buf, buf, num_bytes);
+    truncated_buf[num_bytes] = '\0'; // Null-terminate if needed
     free(buf);
-    buf = newbuf;
+    buf = truncated_buf;
+    total_bytes_rx = num_bytes;
   }
 
+  // Ensure null-termination
+  if (total_bytes_rx < len_rx) {
+    buf[total_bytes_rx] = '\0';
+  }
   return buf;
 }
 
@@ -139,7 +146,7 @@ char **split_http_response(char *buf, long len) {
   container[1] = malloc_s(content_len + 2);
   strncpy(container[1], delimiter + strlen(del), content_len);
   // Newline, otherwise what we send leaks into the next request
-  container[0][content_len - 1] = '\n';
+  container[1][content_len - 1] = '\n';
   // Null-terminate headers
   container[1][content_len] = '\0';
 

@@ -86,30 +86,33 @@ char *client(int cmd) {
   strcpy(host, destinations[cmd]);
 
   struct addrinfo *res = get_ip_addrinfo(host, "http");
+
+  // Print IP address of server
   char *addr_ip = get_ip_addrstr(res);
   debug("IP%s address of %s: %s", IPV4 ? "v4" : "v6", host, addr_ip);
   free(addr_ip);
 
   // Now that we have an IP, create a socket
-  sockfd = check(socket(res->ai_family, res->ai_socktype, res->ai_protocol),
-                 "Could not create socket!");
+  sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+  if (sockfd < 0) {
+    freeaddrinfo(res);
+    perrno("Could not create socket!");
+    exit(1);
+  }
   debug("Socket created");
 
   // Connect to the remote over socket
-  char *str = malloc_s(sizeof(char) * (64 + INET6_ADDRSTRLEN));
-  sprintf(str, "Could not connect to %s!", host);
-  if (connect(sockfd, res->ai_addr, res->ai_addrlen) < 0) {
-    error(str);
-    freeaddrinfo(res);
-    free(str);
-    exit(1);
-  };
-  free(str);
-
-  debug("Connection established");
-
+  int connect_resp = connect(sockfd, res->ai_addr, res->ai_addrlen);
   // servinfo is no longer needed, dispose
   freeaddrinfo(res);
+
+  // If connect failed, error and exit
+  if (connect_resp < 0) {
+    perrno("Could not connect to %s!", host);
+    exit(1);
+  };
+
+  debug("Connection established");
 
   // Send HTTP request
   char *message = "GET / HTTP/1.0\r\n\r\n";
@@ -127,7 +130,7 @@ char *client(int cmd) {
   }
 
   // Close socket; we're done using it
-  close(sockfd);
+  check(close(sockfd), "close");
 
   // Print message length
   debug("Message length: %ld", total_bytes_rx);

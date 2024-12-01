@@ -74,7 +74,6 @@ char *recv_all(int sockfd, unsigned int num_bytes) {
     debug("received %d bytes", bytes_rx);
 
     if (bytes_rx == 0) {
-      debug("Remote has closed the connection");
       break;
     }
 

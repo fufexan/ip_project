@@ -24,6 +24,7 @@ typedef struct {
 void *handle_connection(void *);
 int get_listener_socket(void);
 void track_sock(resource_tracker *, int);
+void untrack_sock(resource_tracker *, int);
 void close_all_sockets(resource_tracker *);
 void int_handler(int);
 
@@ -126,7 +127,8 @@ void *handle_connection(void *fd) {
     free(buf); // Free if recv_all returned non-NULL
   }
 
-  close(client_fd);
+  check(close(client_fd), "close");
+  untrack_sock(&tracker, client_fd);
   pthread_exit(0);
   return NULL;
 }
@@ -163,7 +165,7 @@ int get_listener_socket(void) {
 
     // Bind to requested port
     if (bind(listener, p->ai_addr, p->ai_addrlen) < 0) {
-      close(listener);
+      check(close(listener), "close");
       continue;
     }
 
@@ -207,4 +209,20 @@ void track_sock(resource_tracker *tracker, int fd) {
   tracker->active_sockets = realloc_s(
       tracker->active_sockets, (tracker->socket_count + 1) * sizeof(int));
   tracker->active_sockets[tracker->socket_count++] = fd;
+}
+
+// Remove a socket from a resource_tracker
+void untrack_sock(resource_tracker *tracker, int fd) {
+  // Loop through all the active sockets
+  for (size_t i = 0; i < tracker->socket_count; i++) {
+    if (tracker->active_sockets[i] != fd) {
+      continue;
+    }
+
+    // If we found our socket, copy the last element over it and decrement the
+    // socket count, then exit the loop
+    tracker->active_sockets[i] =
+        tracker->active_sockets[--tracker->socket_count];
+    break;
+  }
 }

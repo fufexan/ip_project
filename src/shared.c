@@ -1,11 +1,13 @@
 #include "shared.h"
 #include <stdarg.h>
+#include <sysexits.h>
 
 bool DEBUG = false, DEBUG_SET = false;
 
-// Check result of a command, and return its return value if it did not error
+// Check result of a command, and return its return value if it did not error.
+// Works for commands that return values less than 0 on error.
 int check(int result, const char *message) {
-  if (result == -1) {
+  if (result < 0) {
     perrno(message);
     exit(1);
   }
@@ -13,8 +15,8 @@ int check(int result, const char *message) {
   return result;
 }
 
-// Checks the return value of malloc, to ensure we don't try to use unallocated
-// memory
+// Checks the return value of `malloc`, to ensure we don't try to use
+// unallocated memory
 void *malloc_s(size_t n) {
   void *p = malloc(n);
 
@@ -26,8 +28,8 @@ void *malloc_s(size_t n) {
   return p;
 }
 
-// Checks the return value of malloc, to ensure we don't try to use unallocated
-// memory
+// Checks the return value of `realloc`, to ensure we don't try to use
+// unallocated memory
 void *realloc_s(void *buf, size_t n) {
   void *p = realloc(buf, n);
 
@@ -48,6 +50,9 @@ void *get_in_addr(struct sockaddr *sa) {
   return &(((struct sockaddr_in6 *)sa)->sin6_addr);
 }
 
+// Receive the entire message on `sockfd`, until the number of received bytes is
+// 0. Optionally limit the number of bytes to be received by setting `num_bytes`
+// to a non-zero value.
 char *recv_all(int sockfd, unsigned int num_bytes) {
   // Await response (synchronously)
   // Use a small step size to demonstrate resilient behavior
@@ -106,6 +111,7 @@ char *recv_all(int sockfd, unsigned int num_bytes) {
   return buf;
 }
 
+// Send an entire message by repeatedly calling `send` as needed
 void send_all(int sockfd, char *buf, unsigned int num_bytes) {
   int bytes_tx = 0;
   int total_bytes_tx = 0;
@@ -119,6 +125,11 @@ void send_all(int sockfd, char *buf, unsigned int num_bytes) {
   }
 }
 
+// Split a buffer into two, `headers` (`container[0]`) and `content`
+// (`container[1]`), based on a HTTP ending (`\r\n\r\n`).
+//
+// `buf` is consumed and freed in the process, and it is up to the calling code
+// to free the resulting `char **` (`container`).
 char **split_http_response(char *buf, long len) {
   char **container = malloc_s(2 * sizeof(char *));
 
@@ -156,6 +167,7 @@ char **split_http_response(char *buf, long len) {
   return container;
 }
 
+// Write `buffer` to a file called `file_name`.
 void save_file(char *buffer, unsigned int length, char *file_name) {
   FILE *file = fopen(file_name, "w");
 
@@ -168,6 +180,11 @@ void save_file(char *buffer, unsigned int length, char *file_name) {
   fclose(file);
 }
 
+// Helper print functions
+// All of them exit the program with the exit code EX_IOERR (74) in case there
+// was an output error
+
+// Pretty print non-critical messages
 void debug(const char *restrict format, ...) {
   if (!DEBUG_SET) {
     if (getenv("DEBUG") != NULL) {

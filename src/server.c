@@ -17,6 +17,7 @@
 #define PORT "22034"
 #define ASSIGNED_COMMAND 4
 
+// Functions only used by the server
 void *handle_connection(void *);
 int get_listener_socket(void);
 
@@ -34,6 +35,8 @@ int main(int argc, char **argv) {
   signal(SIGINT, int_handler);
   printf("Starting IPv4 server...\n");
 
+  // If env var ALL_COMMANDS=1 is present, enable all commands, instead of only
+  // ASSIGNED_COMMAND
   char *all_commands = getenv("ALL_COMMANDS");
   ALL_COMMANDS = all_commands != NULL;
 
@@ -69,12 +72,16 @@ int main(int argc, char **argv) {
     *threadarg = newsockfd;
     pthread_create(&t, NULL, handle_connection, threadarg);
     // Threads are on their own
+    // Even though we detach the thread immediately after creation, valgrind may
+    // still falsely report the thread's local memory as a leak, even though it
+    // isn't.
     pthread_detach(t);
   }
 
   return 0;
 }
 
+// Handle connections initiated by clients. Can be used with pthreads.
 void *handle_connection(void *fd) {
   int newsockfd = *(int *)fd;
   free(fd);

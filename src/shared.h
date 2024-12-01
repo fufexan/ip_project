@@ -7,6 +7,7 @@
 
 int check(int, const char *);
 void *malloc_s(size_t);
+void *realloc_s(void *, size_t);
 void *get_in_addr(struct sockaddr *);
 char *recv_all(int sockfd, unsigned int num_bytes);
 void send_all(int sockfd, char *buf, unsigned int num_bytes);

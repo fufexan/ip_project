@@ -1,5 +1,7 @@
 #include "./destinations.h"
 
+// Standard hostnames provided in the project overview file, with the addition
+// of localhost at index 0
 const char *destinations[DEST_MAX + 1] = {"localhost",
                                           "www.bbc.co.uk",
                                           "www.speedtest6.com",

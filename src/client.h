@@ -1,1 +1,1 @@
-char* client(int);
+char *client(int);

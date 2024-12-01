@@ -148,18 +148,18 @@ char **split_http_response(char *buf, long len) {
   container[0] = malloc_s(headers_len + 2);
   strncpy(container[0], buf, headers_len);
   // Newline, otherwise what we send leaks into the next request
-  container[0][headers_len - 1] = '\n';
+  container[0][headers_len] = '\n';
   // Null-terminate headers
-  container[0][headers_len] = '\0';
+  container[0][headers_len + 1] = '\0';
 
   // Allocate memory and copy content
   size_t content_len = len - (headers_len + strlen(del));
   container[1] = malloc_s(content_len + 2);
   strncpy(container[1], delimiter + strlen(del), content_len);
   // Newline, otherwise what we send leaks into the next request
-  container[1][content_len - 1] = '\n';
+  container[1][content_len] = '\n';
   // Null-terminate headers
-  container[1][content_len] = '\0';
+  container[1][content_len + 1] = '\0';
 
   // We're done using buf
   free(buf);

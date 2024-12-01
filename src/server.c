@@ -21,6 +21,7 @@ void *handle_connection(void *);
 int get_listener_socket(void);
 
 int sockfd;
+bool ALL_COMMANDS = false;
 
 void int_handler(int sig) {
   check(close(sockfd), "close");
@@ -32,6 +33,9 @@ void int_handler(int sig) {
 int main(int argc, char **argv) {
   signal(SIGINT, int_handler);
   printf("Starting IPv4 server...\n");
+
+  char *all_commands = getenv("ALL_COMMANDS");
+  ALL_COMMANDS = all_commands != NULL;
 
   sockfd = get_listener_socket();
 
@@ -86,7 +90,7 @@ void *handle_connection(void *fd) {
     printf("cmd: %s\n", buf);
     free(buf); // Free buf after use
 
-    if (cmd != ASSIGNED_COMMAND) {
+    if (!ALL_COMMANDS && cmd != ASSIGNED_COMMAND) {
       response_buf = "Command not implemented";
     } else {
       // We receive allocated memory that we have to free
@@ -97,7 +101,7 @@ void *handle_connection(void *fd) {
     send_all(newsockfd, response_buf, strlen(response_buf));
 
     // Free dynamically allocated response_buf
-    if (cmd == ASSIGNED_COMMAND) {
+    if (ALL_COMMANDS || cmd == ASSIGNED_COMMAND) {
       free(response_buf);
     }
   }

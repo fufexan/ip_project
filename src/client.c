@@ -66,6 +66,11 @@ char *client(int cmd) {
     IPV4 = true;
   }
 
+  // Short-circuit for unknown commands
+  if (cmd > DEST_MAX || cmd < 0) {
+    return "Command not implemented\n";
+  }
+
   // 64 bytes should be enough
   char *host = malloc_s(64 * sizeof(char));
   int sockfd;

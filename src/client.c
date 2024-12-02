@@ -95,6 +95,7 @@ char *client(int cmd) {
   // Now that we have an IP, create a socket
   sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
   if (sockfd < 0) {
+    free(host);
     freeaddrinfo(res);
     perrno("Could not create socket!");
     exit(1);
@@ -109,6 +110,7 @@ char *client(int cmd) {
   // If connect failed, error and exit
   if (connect_resp < 0) {
     perrno("Could not connect to %s!", host);
+    free(host);
     exit(1);
   };
 

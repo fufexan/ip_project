@@ -206,11 +206,11 @@ char *client(int cmd) {
   char *content = container[1];
 
   // Print headers
-  check_print(printf("\n%s\n", headers));
+  printf("\n%s\n", headers);
 
   // Save content to `{host}.http`
   char *filename = malloc_s(strlen(host) + 6); // ".html\0"
-  check_print(sprintf(filename, "%s.html", host));
+  sprintf(filename, "%s.html", host);
 
   save_file(content, strlen(content), filename);
 

@@ -37,7 +37,7 @@ resource_tracker tracker = {NULL, 0};
 
 int main(int argc, char **argv) {
   signal(SIGINT, int_handler);
-  check_print(printf("Starting IPv4 server...\n"));
+  printf("Starting IPv4 server...\n");
 
   // If env var ALL_COMMANDS=1 is present, enable all commands, instead of only
   // ASSIGNED_COMMAND
@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
       error("Failed to get string representation of remote address");
     }
 
-    check_print(printf("New connection from %s on socket %d\n", remote_ipv4, client_fd));
+    printf("New connection from %s on socket %d\n", remote_ipv4, client_fd);
 
     // Make a pthread
     pthread_t t;
@@ -106,7 +106,7 @@ void *handle_connection(void *fd) {
   while ((buf = recv_all(client_fd, 3)) && strlen(buf) != 0) {
     // We only want 3 bytes, in the form "xy#", where x and y are digits
     int cmd = atoi(buf);
-    check_print(printf("cmd: %s\n", buf));
+    printf("cmd: %s\n", buf);
     free(buf); // Free buf after use
 
     if (!ALL_COMMANDS && cmd != ASSIGNED_COMMAND) {
@@ -157,7 +157,7 @@ int get_listener_socket(void) {
 
   // Get address info (NULL -> localhost)
   if ((rv = getaddrinfo(NULL, PORT, &hints, &ai)) != 0) {
-    error("pollserver: %s", gai_strerror(rv));
+    fprintf(stderr, "pollserver: %s\n", gai_strerror(rv));
     exit(1);
   }
 
@@ -207,7 +207,7 @@ void close_all_sockets(resource_tracker *tracker) {
 // SIGINT handler
 void int_handler(int sig) {
   close_all_sockets(&tracker);
-  check_print(printf("\nServer closed\n"));
+  printf("\nServer closed\n");
 
   exit(0);
 }

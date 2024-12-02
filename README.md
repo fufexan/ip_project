@@ -1,3 +1,9 @@
+---
+# don't print page numbers when converting to pdf with pandoc
+header-includes:
+- \pagenumbering{gobble}
+---
+
 # Internet Protocols project
 
 The project consists of two parts, a client and a server.

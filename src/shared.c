@@ -91,7 +91,7 @@ char *recv_all(int sockfd, unsigned int num_bytes) {
   } while (bytes_rx > 0);
 
   if (bytes_rx == 0)
-    printf("Remote has closed the connection\n");
+    check_print(printf("Remote has closed the connection\n"));
 
   // Truncate if num_bytes is specified
   if (num_bytes > 0 && total_bytes_rx > num_bytes) {
@@ -187,7 +187,7 @@ void save_file(char *buffer, unsigned int length, char *file_name) {
 void debug(const char *restrict format, ...) {
   if (!DEBUG_SET) {
     if (getenv("DEBUG") != NULL) {
-      printf("Setting DEBUG to true\n");
+      check_print(printf("Setting DEBUG to true\n"));
       DEBUG = true;
     }
 

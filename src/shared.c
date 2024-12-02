@@ -200,44 +200,46 @@ void debug(const char *restrict format, ...) {
 
   va_list vargs;
   // Begin orange colored output
-  printf("\033[0;33m");
-  va_start(vargs, format);
-  int res = vprintf(format, vargs);
-  va_end(vargs);
-  // End orange colored output
-  printf("\033[0m\n");
+  check_print(printf("\033[0;33m"));
 
-  if (res < 0) {
-    exit(EX_IOERR);
-  }
+  va_start(vargs, format);
+  check_print(vprintf(format, vargs));
+  va_end(vargs);
+
+  // End orange colored output
+  check_print(printf("\033[0m\n"));
 }
 
 // Print error messages to stderr with the prefix `ERROR: `
 void error(const char *restrict format, ...) {
   va_list vargs;
-  fprintf(stderr, "ERROR: ");
+
+  check_print(fprintf(stderr, "ERROR: "));
+
   va_start(vargs, format);
-  int res = vfprintf(stderr, format, vargs);
-  fprintf(stderr, "\n");
+  check_print(vfprintf(stderr, format, vargs));
   va_end(vargs);
 
-  if (res < 0) {
-    exit(EX_IOERR);
-  }
+  check_print(fprintf(stderr, "\n"));
 }
 
 // Print the desired message followed by the errno and its explanation on a
 // newline
 void perrno(const char *restrict format, ...) {
   va_list vargs;
-  va_start(vargs, format);
-  error(format, vargs);
-  va_end(vargs);
-  int res = fprintf(stderr, "errno %d: %s\n", errno, strerror(errno));
 
-  // Probably redundant, as `error()` would exit(74) before this, as long as it
-  // had something to print.
-  if (res < 0) {
+  check_print(fprintf(stderr, "ERROR: "));
+
+  va_start(vargs, format);
+  check_print(vfprintf(stderr, format, vargs));
+  va_end(vargs);
+
+  check_print(fprintf(stderr, "\nerrno %d: %s\n", errno, strerror(errno)));
+}
+
+// Check the result of *printf and exit with EX_IOERR if there are problems
+void check_print(int result) {
+  if (result < 0) {
     exit(EX_IOERR);
   }
 }

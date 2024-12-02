@@ -16,3 +16,4 @@ void save_file(char *buffer, unsigned int length, char *file_name);
 void debug(const char *restrict, ...);
 void error(const char *restrict, ...);
 void perrno(const char *restrict, ...);
+void check_print(int);

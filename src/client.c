@@ -141,31 +141,31 @@ char *client(int cmd) {
     exit(1);
   }
 
+  // Copy buf before passing buf to split_http_response, which frees it
+  char *buf_copy = malloc_s(total_bytes_rx);
+  memcpy(buf_copy, buf, total_bytes_rx);
+
+  // Split response into headers and content
   char **container = split_http_response(buf, total_bytes_rx);
   char *headers = container[0];
   char *content = container[1];
 
   // Print headers
-  printf("%s\n", headers);
+  printf("\n%s\n", headers);
+
   // Save content to `{host}.http`
   char *filename = malloc_s(strlen(host) + 6); // ".html\0"
   sprintf(filename, "%s.html", host);
 
   save_file(content, strlen(content), filename);
 
-  // We're done with host
+  // We're done with host, the file, and the container
   free(host);
   free(filename);
-
-  // Create temporary pointer and copy data in memory
-  char *html = malloc_s(strlen(content) + 1);
-  strcpy(html, content);
-
-  // Free container
   free(headers);
   free(content);
   free(container);
 
   // Return the temporary pointer and let the caller handle it
-  return html;
+  return buf_copy;
 }

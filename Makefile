@@ -1,22 +1,17 @@
 # Compiler
 CC = gcc
 
+# Compiler arguments: pthreads, gdb debug symbols, treat all warnings as errors
+CC_ARGS = -pthread -ggdb -Wall
+
 # OBJS specifies which files to compile as part of the project
-CLIENT_OBJS = src/client.c src/destinations.c
+OBJS = src/client.c src/destinations.c src/shared.c src/server.c
 # HEADERS specifies the header files
-HEADERS = src/destinations.h src/shared.h src/client.h
+HEADERS = src/client.h src/destinations.h src/shared.h
 
-SERVER_OBJS = src/server.c src/shared.c
-
-#OBJ_NAME specifies the name of our exectuable
+# OBJ_NAME specifies the name of our exectuable
 OBJ_NAME = main
 
-#This is the target that compiles our executable
-all : $(CLIENT_OBJS) $(SERVER_OBJS)
-	$(CC) $(SERVER_OBJS) $(CLIENT_OBJS) $(HEADERS) -pthread -ggdb -Wall -o $(OBJ_NAME)
-
-# client : $(CLIENT_OBJS)
-# 	$(CC) $(CLIENT_OBJS) $(HEADERS) -ggdb -Wall -o client
-
-# server : $(SERVER_OBJS)
-# 	$(CC) $(SERVER_OBJS) $(HEADERS) -ggdb -Wall -o server
+# This is the target that compiles our executable
+all : $(OBJS)
+	$(CC) $(OBJS) $(HEADERS) $(CC_ARGS) -o $(OBJ_NAME)

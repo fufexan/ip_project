@@ -25,6 +25,8 @@ struct addrinfo *get_ip_addrinfo(const char *name, const char *service) {
   // but is not an error
   if ((status = getaddrinfo(name, "http", &hints, &res)) != 0) {
     error("getaddrinfo error: %s\n", gai_strerror(status));
+    freeaddrinfo(res);
+    return NULL;
   }
 
   return res;
@@ -54,7 +56,7 @@ char *get_ip_addrstr(struct addrinfo *res) {
   if (!addr_found) {
     error("Could not find a valid IP%s address!", IPV4 ? "v4" : "v6");
     free(hostaddr);
-    exit(1);
+    return NULL;
   }
 
   return hostaddr;
@@ -87,8 +89,33 @@ char *client(int cmd) {
 
   struct addrinfo *res = get_ip_addrinfo(host, "http");
 
+  // If no IP address was found, return error
+  if (res == NULL) {
+    char *error_resp = malloc_s(128 * sizeof(char));
+    sprintf(error_resp, "Could not find IP%s address for %s!\n",
+            IPV4 ? "v4" : "v6", host);
+    free(host);
+    freeaddrinfo(res);
+
+    perrno(error_resp);
+    return error_resp;
+  }
+
   // Print IP address of server
   char *addr_ip = get_ip_addrstr(res);
+
+  // If no IP address was found, return error
+  if (res == NULL) {
+    char *error_resp = malloc_s(128 * sizeof(char));
+    sprintf(error_resp,
+            "Could not determine IP%s string representation for %s!\n",
+            IPV4 ? "v4" : "v6", host);
+    free(host);
+    freeaddrinfo(res);
+
+    return error_resp;
+  }
+
   debug("IP%s address of %s: %s", IPV4 ? "v4" : "v6", host, addr_ip);
   free(addr_ip);
 
@@ -97,8 +124,13 @@ char *client(int cmd) {
   if (sockfd < 0) {
     free(host);
     freeaddrinfo(res);
-    perrno("Could not create socket!");
-    exit(1);
+
+    // Construct and return custom error message
+    char *error_resp = malloc_s(64 * sizeof(char));
+    strcpy(error_resp, "Could not create socket!\n\0");
+
+    perrno(error_resp);
+    return error_resp;
   }
   debug("Socket created");
 
@@ -107,11 +139,14 @@ char *client(int cmd) {
   // servinfo is no longer needed, dispose
   freeaddrinfo(res);
 
-  // If connect failed, error and exit
+  // If connect failed, error and return message
   if (connect_resp < 0) {
-    perrno("Could not connect to %s!", host);
+    char *error_resp = malloc_s(64 * sizeof(char));
+    sprintf(error_resp, "Could not connect to %s!\n", host);
     free(host);
-    exit(1);
+    perrno(error_resp);
+
+    return error_resp;
   };
 
   debug("Connection established");
@@ -125,33 +160,48 @@ char *client(int cmd) {
 
   // Receive response
   // 0 num_bytes because we don't expect a fixed response size
-  long total_bytes_rx = 0;
+  long bytes_rx = 0;
   char *buf = recv_all(sockfd, 0);
-  if (buf != NULL) {
-    total_bytes_rx = strlen(buf) + 1;
+  if (buf == NULL) {
+    char *error_resp = malloc_s(64 * sizeof(char));
+    strcpy(error_resp, "No response\n\0");
+    free(host);
+    perrno(error_resp);
+    return error_resp;
   }
 
+  // Get number of received bytes
+  bytes_rx = strlen(buf) + 1;
+  debug("Message length: %ld", bytes_rx);
+
   // Close socket; we're done using it
-  check(close(sockfd), "close");
+  check(close(sockfd), "Could not close buffer");
 
-  // Print message length
-  debug("Message length: %ld", total_bytes_rx);
+  if (bytes_rx == 0) {
+    // Construct and return custom error message
+    char *error_resp = malloc_s(64 * sizeof(char));
+    strcpy(error_resp, "Received empty response\n\0");
 
-  // Exit preemptively if response is empty
-  if (total_bytes_rx == 0) {
-    error("Empty response!");
-    exit(1);
+    error(error_resp);
+    return error_resp;
   }
 
   // Copy buf before passing buf to split_http_response, which frees it
-  char *buf_copy = malloc_s(total_bytes_rx + 1);
-  memcpy(buf_copy, buf, total_bytes_rx);
+  char *buf_copy = malloc_s(bytes_rx + 1);
+  memcpy(buf_copy, buf, bytes_rx);
   // Ensure newline and NULL termination
-  buf_copy[total_bytes_rx - 1] = '\n';
-  buf_copy[total_bytes_rx] = '\0';
+  buf_copy[bytes_rx - 1] = '\n';
+  buf_copy[bytes_rx] = '\0';
 
   // Split response into headers and content
-  char **container = split_http_response(buf, total_bytes_rx);
+  char **container = split_http_response(buf, bytes_rx);
+  // If there was no HTML, early return
+  if (container == NULL) {
+    error("Could not save file because there was no HTML");
+    free(host);
+    return buf_copy;
+  }
+
   char *headers = container[0];
   char *content = container[1];
 

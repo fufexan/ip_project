@@ -9,7 +9,6 @@ bool DEBUG = false, DEBUG_SET = false;
 int check(int result, const char *message) {
   if (result < 0) {
     perrno(message);
-    exit(1);
   }
 
   return result;
@@ -129,6 +128,8 @@ void send_all(int sockfd, char *buf, unsigned int num_bytes) {
 //
 // `buf` is consumed and freed in the process, and it is up to the calling code
 // to free the resulting `char **` (`container`).
+//
+// If the response is empty, return NULL
 char **split_http_response(char *buf, long len) {
   char **container = malloc_s(2 * sizeof(char *));
 
@@ -139,7 +140,8 @@ char **split_http_response(char *buf, long len) {
   if (!delimiter) {
     error("Empty response!");
     free(container);
-    exit(1);
+    free(buf);
+    return NULL;
   }
 
   // Allocate memory and copy headers

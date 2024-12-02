@@ -128,7 +128,7 @@ char *client(int cmd) {
   long total_bytes_rx = 0;
   char *buf = recv_all(sockfd, 0);
   if (buf != NULL) {
-    total_bytes_rx = strlen(buf);
+    total_bytes_rx = strlen(buf) + 1;
   }
 
   // Close socket; we're done using it
@@ -144,8 +144,11 @@ char *client(int cmd) {
   }
 
   // Copy buf before passing buf to split_http_response, which frees it
-  char *buf_copy = malloc_s(total_bytes_rx);
+  char *buf_copy = malloc_s(total_bytes_rx + 1);
   memcpy(buf_copy, buf, total_bytes_rx);
+  // Ensure newline and NULL termination
+  buf_copy[total_bytes_rx - 1] = '\n';
+  buf_copy[total_bytes_rx] = '\0';
 
   // Split response into headers and content
   char **container = split_http_response(buf, total_bytes_rx);

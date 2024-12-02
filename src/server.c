@@ -32,6 +32,7 @@ void int_handler(int);
 const char PORT[] = "22034";
 const int ASSIGNED_COMMAND = 4;
 bool ALL_COMMANDS = false;
+bool LOCALHOST = false;
 resource_tracker tracker = {NULL, 0};
 
 int main(int argc, char **argv) {
@@ -40,8 +41,11 @@ int main(int argc, char **argv) {
 
   // If env var ALL_COMMANDS=1 is present, enable all commands, instead of only
   // ASSIGNED_COMMAND
-  char *all_commands = getenv("ALL_COMMANDS");
-  ALL_COMMANDS = all_commands != NULL;
+  ALL_COMMANDS = getenv("ALL_COMMANDS") != NULL;
+
+  // If env var LOCALHOST=1 is present, send a request to localhost instead of
+  // ASSIGNED_COMMAND
+  LOCALHOST = getenv("LOCALHOST") != NULL;
 
   int sockfd = get_listener_socket();
   track_sock(&tracker, sockfd);
@@ -108,6 +112,10 @@ void *handle_connection(void *fd) {
     if (!ALL_COMMANDS && cmd != ASSIGNED_COMMAND) {
       response_buf = "Command not implemented";
     } else {
+      // Use localhost (cmd 0) instead of ASSIGNED_COMMAND if LOCALHOST is true
+      if (LOCALHOST && cmd == ASSIGNED_COMMAND) {
+        cmd = 0;
+      }
       // We receive allocated memory that we have to free
       response_buf = client(cmd);
     }

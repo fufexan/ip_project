@@ -76,9 +76,9 @@ char *client(int cmd) {
 
   // Short-circuit for unknown commands
   if (cmd > DEST_MAX || cmd < 0) {
-    char *response = malloc_s(25 * sizeof(char));
-    strcpy(response, "Command not implemented\n\0");
-    return response;
+    char *error_resp = malloc_s(25 * sizeof(char));
+    strcpy(error_resp, "Command not implemented\n\0");
+    return error_resp;
   }
 
   // 64 bytes should be enough

@@ -54,71 +54,88 @@ void *get_in_addr(struct sockaddr *sa) {
 // to a non-zero value.
 char *recv_all(int sockfd, unsigned int num_bytes) {
   // Await response (synchronously)
-  // Use a small step size to demonstrate resilient behavior
-  int step_size = 10;
-  int cursor = 0, bytes_rx = 0, total_bytes_rx = 0;
-  int len_rx = step_size;
-  char *buf = malloc_s(sizeof(char) * len_rx);
+  // Start with a small buffer size to demonstrate resilient behavior
+  size_t buf_len = 2, cursor = 0;
+  int bytes_rx = 0, total_rx = 0;
+
+  char *buf = malloc_s(sizeof(char) * buf_len);
 
   do {
     // We only want num_bytes, if non-zero
-    if (num_bytes != 0 && total_bytes_rx >= num_bytes) {
+    if (num_bytes != 0 && total_rx >= num_bytes) {
       break;
     }
 
     // Write bytes into the next free location in the buffer
     // Receive only as much as the amount of free space we have in the buffer
-    bytes_rx = check(recv(sockfd, buf + cursor, len_rx - total_bytes_rx, 0),
-                     "recv failed");
+    bytes_rx = recv(sockfd, buf + cursor, buf_len - total_rx, 0);
+
+    // Early return if we got an error
+    if (bytes_rx < 0) {
+      perrno("Received 0 bytes when calling recv");
+      free(buf);
+      return NULL;
+    }
+
     debug("received %d bytes", bytes_rx);
 
+    // When we receive 0 bytes, the server has closed the connection
     if (bytes_rx == 0) {
       break;
     }
 
     // Keep count of the bytes received
-    total_bytes_rx += bytes_rx;
+    total_rx += bytes_rx;
     // Continue reading where we left off
     cursor += bytes_rx;
 
-    // If the buffer is filled, increase its size
-    if (total_bytes_rx == len_rx) {
-      buf = realloc_s(buf, len_rx + step_size);
-      len_rx += step_size;
-      debug("Extended buffer to length %d", len_rx);
+    // If the buffer is full, double its size
+    if (total_rx == buf_len) {
+      buf = realloc_s(buf, buf_len * 2);
+      buf_len *= 2;
+      debug("Extended buffer to size %d", buf_len);
     }
   } while (bytes_rx > 0);
 
   if (bytes_rx == 0)
-    printf("Remote has closed the connection\n");
+    printf("Remote has closed the connection on fd %d\n", sockfd);
 
   // Truncate if num_bytes is specified
-  if (num_bytes > 0 && total_bytes_rx > num_bytes) {
+  if (num_bytes > 0 && total_rx > num_bytes) {
     char *truncated_buf = malloc_s(num_bytes + 1);
     memcpy(truncated_buf, buf, num_bytes);
-    truncated_buf[num_bytes] = '\0'; // Null-terminate if needed
+
+    // Ensure null-termination
+    truncated_buf[num_bytes] = '\0';
+
     free(buf);
     buf = truncated_buf;
-    total_bytes_rx = num_bytes;
+    total_rx = num_bytes;
   }
 
   // Ensure null-termination
-  if (total_bytes_rx < len_rx) {
-    buf[total_bytes_rx] = '\0';
+  if (total_rx < buf_len) {
+    buf[total_rx] = '\0';
   }
+
   return buf;
 }
 
 // Send an entire message by repeatedly calling `send` as needed
 void send_all(int sockfd, char *buf, unsigned int num_bytes) {
   int bytes_tx = 0;
-  int total_bytes_tx = 0;
+  int total_tx = 0;
 
-  while (num_bytes - total_bytes_tx > 0) {
-    bytes_tx =
-        check(send(sockfd, buf + total_bytes_tx, num_bytes - total_bytes_tx, 0),
-              "send failed");
-    total_bytes_tx += bytes_tx;
+  while (num_bytes - total_tx > 0) {
+    bytes_tx = send(sockfd, buf + total_tx, num_bytes - total_tx, 0);
+
+    // Log error and early return
+    if (bytes_tx < 0) {
+      perrno("recv error");
+      return;
+    }
+
+    total_tx += bytes_tx;
     debug("sent %d bytes", bytes_tx);
   }
 }
@@ -147,7 +164,7 @@ char **split_http_response(char *buf, long len) {
   // Allocate memory and copy headers
   size_t headers_len = delimiter - buf;
   container[0] = malloc_s(headers_len + 2);
-  strncpy(container[0], buf, headers_len);
+  memcpy(container[0], buf, headers_len);
   // Newline, otherwise what we send leaks into the next request
   container[0][headers_len] = '\n';
   // Null-terminate headers
@@ -156,7 +173,7 @@ char **split_http_response(char *buf, long len) {
   // Allocate memory and copy content
   size_t content_len = len - (headers_len + strlen(del));
   container[1] = malloc_s(content_len + 2);
-  strncpy(container[1], delimiter + strlen(del), content_len);
+  memcpy(container[1], delimiter + strlen(del), content_len);
   // Newline, otherwise what we send leaks into the next request
   container[1][content_len] = '\n';
   // Null-terminate headers
@@ -172,13 +189,21 @@ char **split_http_response(char *buf, long len) {
 void save_file(char *buffer, unsigned int length, char *file_name) {
   FILE *file = fopen(file_name, "w");
 
-  if (file) {
-    fwrite(buffer, sizeof(char), length, file);
+  if (!file) {
+    perrno("Could not open file for writing");
+  }
+
+  size_t bytes_written = fwrite(buffer, sizeof(char), length, file);
+
+  if (bytes_written != length) {
+    perrno("File writing");
   }
 
   debug("Saved file to %s\n", file_name);
 
-  fclose(file);
+  if (fclose(file) == EOF) {
+    perrno("Could not close and flush file");
+  }
 }
 
 // Helper print functions

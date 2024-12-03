@@ -16,8 +16,10 @@
 
 // Hold information about the active sockets
 typedef struct {
-  int *active_sockets; // Array of active socket descriptors
-  size_t socket_count; // Number of active sockets
+  // Array of active socket descriptors
+  int *active_sockets;
+  // Number of active sockets
+  size_t socket_count;
 } resource_tracker;
 
 // Functions only used by the server
@@ -35,8 +37,13 @@ bool ALL_COMMANDS = false;
 bool LOCALHOST = false;
 resource_tracker tracker = {NULL, 0};
 
+// Main program, runs the server which accepts multiple connections and handles
+// them in parallel
 int main(int argc, char **argv) {
+  // Add signal handlers to gracefully close on exit
   signal(SIGINT, int_handler);
+  signal(SIGTERM, int_handler);
+
   printf("Starting IPv4 server...\n");
 
   // If env var ALL_COMMANDS=1 is present, enable all commands, instead of only
@@ -47,7 +54,14 @@ int main(int argc, char **argv) {
   // ASSIGNED_COMMAND
   LOCALHOST = getenv("LOCALHOST") != NULL;
 
+  // Get a socket to listen for new connections
   int sockfd = get_listener_socket();
+  if (sockfd < 0) {
+    perrno("Could not bind the listening socket");
+    exit(1);
+  }
+
+  // Track the socket
   track_sock(&tracker, sockfd);
 
   // Get ready to accept a connection
@@ -60,7 +74,7 @@ int main(int argc, char **argv) {
     debug("Accepting connection...");
     client_fd =
         check(accept(sockfd, (struct sockaddr *)&remote_addr, &addr_size),
-              "accept error!");
+              "Could not accept connection");
 
     // Add client_fd to tracker's active sockets
     track_sock(&tracker, client_fd);
@@ -76,13 +90,14 @@ int main(int argc, char **argv) {
 
     printf("New connection from %s on socket %d\n", remote_ipv4, client_fd);
 
-    // Make a pthread
+    // Make a pthread to handle the connection in parallel with others
     pthread_t t;
-    // pthreads want a void pointer, so we'll cast our fd. This will be freed in
-    // handle_connection
+    // pthreads want the argument as void *, so we'll cast our fd. This will be
+    // freed in handle_connection
     int *threadarg = malloc_s(sizeof(int));
     *threadarg = client_fd;
     pthread_create(&t, NULL, handle_connection, threadarg);
+
     // Threads are on their own
     // Even though we detach the thread immediately after creation, valgrind may
     // still falsely report the thread's local memory as a leak, even though it
@@ -95,6 +110,7 @@ int main(int argc, char **argv) {
 
 // Handle connections initiated by clients. Can be used with pthreads.
 void *handle_connection(void *fd) {
+  // Cast the argument to its proper type and free the memory
   int client_fd = *(int *)fd;
   free(fd);
 
@@ -109,8 +125,10 @@ void *handle_connection(void *fd) {
     printf("cmd: %s\n", buf);
     free(buf); // Free buf after use
 
+    // If the server is configured to only respond to the assigned command, and
+    // the received command is not that, return "Command not implemented"
     if (!ALL_COMMANDS && cmd != ASSIGNED_COMMAND) {
-      response_buf = "Command not implemented";
+      response_buf = make_error_message("Command not implemented");
     } else {
       // Use localhost (cmd 0) instead of ASSIGNED_COMMAND if LOCALHOST is true
       if (LOCALHOST && cmd == ASSIGNED_COMMAND) {
@@ -124,29 +142,32 @@ void *handle_connection(void *fd) {
     send_all(client_fd, response_buf, strlen(response_buf));
 
     // Free dynamically allocated response_buf
-    if (ALL_COMMANDS || cmd == ASSIGNED_COMMAND) {
-      free(response_buf);
-    }
+    free(response_buf);
   }
 
   debug("Closing connection");
 
+  // Free buffer if recv_all returned non-NULL
   if (buf) {
-    free(buf); // Free if recv_all returned non-NULL
+    free(buf);
   }
 
+  // Close buffer
   check(close(client_fd), "close");
+  // Untrack socket
   untrack_sock(&tracker, client_fd);
+  // Exit pthread
   pthread_exit(0);
   return NULL;
 }
 
-// Return a listening socket
+// Return a listening socket or -1 in case of error
 int get_listener_socket(void) {
   int listener, yes = 1, rv;
 
   struct addrinfo hints, *ai, *p;
 
+  // Zero-init hints
   memset(&hints, 0, sizeof hints);
   // IPv4
   hints.ai_family = AF_INET;

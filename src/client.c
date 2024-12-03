@@ -18,6 +18,7 @@ char *client(int cmd) {
 
   // Define request
   const char *request = "GET / HTTP/1.0\r\n\r\n";
+  const char *service = "http";
 
   // For debugging purposes, use IPv4 websites
   if (getenv("USE_IPV4")) {
@@ -32,11 +33,10 @@ char *client(int cmd) {
 
   // 64 bytes should be enough
   char *host = malloc_s(64 * sizeof(char));
-  int sockfd;
+  memcpy(host, destinations[cmd], strlen(destinations[cmd]));
 
-  strcpy(host, destinations[cmd]);
-
-  struct addrinfo *res = get_ip_addrinfo(host, "http");
+  // Get IP address info
+  struct addrinfo *res = get_ip_addrinfo(host, service);
 
   // If no IP address was found, return error
   if (res == NULL) {
@@ -66,7 +66,7 @@ char *client(int cmd) {
   free(addr_ip);
 
   // Now that we have an IP, create a socket
-  sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+  int sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
   if (sockfd < 0) {
     free(host);
     freeaddrinfo(res);
@@ -95,7 +95,6 @@ char *client(int cmd) {
     char *error_resp = make_error_message("Could not connect to %s!\n", host);
     free(host);
     perrno(error_resp);
-
     return error_resp;
   };
 
@@ -111,8 +110,10 @@ char *client(int cmd) {
   // 0 num_bytes because we don't expect a fixed response size
   long bytes_rx = 0;
   char *buf = recv_all(sockfd, 0);
+
+  // If response was empty, return message
   if (buf == NULL) {
-    char *error_resp = make_error_message("No response\n");
+    char *error_resp = make_error_message("Received empty response\n");
     free(host);
     perrno(error_resp);
     return error_resp;
@@ -124,13 +125,6 @@ char *client(int cmd) {
 
   // Close socket; we're done using it
   check(close(sockfd), "Could not close buffer");
-
-  if (bytes_rx == 0) {
-    // Construct and return custom error message
-    char *error_resp = make_error_message("Received empty response\n");
-    error(error_resp);
-    return error_resp;
-  }
 
   // Copy buf before passing buf to split_http_response, which frees it
   char *buf_copy = malloc_s(bytes_rx + 1);
@@ -148,13 +142,14 @@ char *client(int cmd) {
     return buf_copy;
   }
 
+  // Get headers and content from container
   char *headers = container[0];
   char *content = container[1];
 
   // Print headers
   printf("\n%s\n", headers);
 
-  // Save content to `{host}.http`
+  // Save content to `{host}.html`
   char *filename = malloc_s(strlen(host) + 6); // ".html\0"
   sprintf(filename, "%s.html", host);
 

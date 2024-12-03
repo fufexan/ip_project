@@ -56,7 +56,7 @@ char *recv_all(int sockfd, unsigned int num_bytes) {
   // Await response (synchronously)
   // Start with a small buffer size to demonstrate resilient behavior
   size_t buf_len = 2, cursor = 0;
-  int bytes_rx = 0, total_rx = 0;
+  long bytes_rx = 0, total_rx = 0;
 
   char *buf = malloc_s(sizeof(char) * buf_len);
 

@@ -263,3 +263,20 @@ void perrno(const char *restrict format, ...) {
 
   fprintf(stderr, "\nerrno %d: %s\n", errno, strerror(errno));
 }
+
+// Create custom error messages to return
+char *make_error_message(const char *format, ...) {
+    va_list vargs;
+    va_start(vargs, format);
+    // Compute space needed for message
+    size_t len = vsnprintf(NULL, 0, format, vargs) + 1;
+    va_end(vargs);
+
+    char *message = malloc_s(len);
+    va_start(vargs, format);
+    // Construct message
+    vsnprintf(message, len, format, vargs);
+    va_end(vargs);
+
+    return message;
+}

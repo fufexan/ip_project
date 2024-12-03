@@ -17,17 +17,14 @@ char *client(int cmd) {
   debug("Starting client...\n");
 
   // For debugging purposes, use IPv4 websites
-  char *inet_family = getenv("USE_IPV4");
-  if (inet_family) {
+  if (getenv("USE_IPV4")) {
     AF_FAMILY = AF_INET;
     IPV4 = true;
   }
 
   // Short-circuit for unknown commands
   if (cmd > DEST_MAX || cmd < 0) {
-    char *error_resp = malloc_s(25 * sizeof(char));
-    strcpy(error_resp, "Command not implemented\n\0");
-    return error_resp;
+    return make_error_message("Command not implemented\n");
   }
 
   // 64 bytes should be enough
@@ -40,9 +37,8 @@ char *client(int cmd) {
 
   // If no IP address was found, return error
   if (res == NULL) {
-    char *error_resp = malloc_s(128 * sizeof(char));
-    sprintf(error_resp, "Could not find IP%s address for %s!\n",
-            IPV4 ? "v4" : "v6", host);
+    char *error_resp = make_error_message(
+        "Could not find IP%s address for %s!\n", IPV4 ? "v4" : "v6", host);
     free(host);
     freeaddrinfo(res);
 
@@ -55,10 +51,9 @@ char *client(int cmd) {
 
   // If no IP address was found, return error
   if (res == NULL) {
-    char *error_resp = malloc_s(128 * sizeof(char));
-    sprintf(error_resp,
-            "Could not determine IP%s string representation for %s!\n",
-            IPV4 ? "v4" : "v6", host);
+    char *error_resp = make_error_message(
+        "Could not determine IP%s string representation for %s!\n",
+        IPV4 ? "v4" : "v6", host);
     free(host);
     freeaddrinfo(res);
 
@@ -75,9 +70,7 @@ char *client(int cmd) {
     freeaddrinfo(res);
 
     // Construct and return custom error message
-    char *error_resp = malloc_s(64 * sizeof(char));
-    strcpy(error_resp, "Could not create socket!\n\0");
-
+    char *error_resp = make_error_message("Could not create socket!\n");
     perrno(error_resp);
     return error_resp;
   }
@@ -90,8 +83,7 @@ char *client(int cmd) {
 
   // If connect failed, error and return message
   if (connect_resp < 0) {
-    char *error_resp = malloc_s(64 * sizeof(char));
-    sprintf(error_resp, "Could not connect to %s!\n", host);
+    char *error_resp = make_error_message("Could not connect to %s!\n", host);
     free(host);
     perrno(error_resp);
 
@@ -112,8 +104,7 @@ char *client(int cmd) {
   long bytes_rx = 0;
   char *buf = recv_all(sockfd, 0);
   if (buf == NULL) {
-    char *error_resp = malloc_s(64 * sizeof(char));
-    strcpy(error_resp, "No response\n\0");
+    char *error_resp = make_error_message("No response\n");
     free(host);
     perrno(error_resp);
     return error_resp;
@@ -128,9 +119,7 @@ char *client(int cmd) {
 
   if (bytes_rx == 0) {
     // Construct and return custom error message
-    char *error_resp = malloc_s(64 * sizeof(char));
-    strcpy(error_resp, "Received empty response\n\0");
-
+    char *error_resp = make_error_message("Received empty response\n");
     error(error_resp);
     return error_resp;
   }

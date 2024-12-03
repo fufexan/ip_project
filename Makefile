@@ -20,7 +20,7 @@ all : $(OBJS)
 # Required packages: fd, xargs, enscript, ghostscript, pandoc, texlive-medium, qpdf
 doc :
 	# Convert README to pdf
-	pandoc README.md -s -V papersize:a4 -o readme.pdf
+	pandoc README.md -s -V papersize:a4 --pdf-engine=lualatex -o readme.pdf
 	# Convert code to highlighted pdf
 	fd --regex ".*\.(c|h)" | xargs enscript --color=1 -C -Ec -o - | ps2pdf - code.pdf
 	# Combine cover, readme and code into one pdf

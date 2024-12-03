@@ -2,11 +2,15 @@
 # don't print page numbers when converting to pdf with pandoc
 header-includes:
 - \pagenumbering{gobble}
+# Similar to Times New Roman
+mainfont: LibertinusSerif-Regular.otf
 ---
 
 # Internet Protocols project
 
 The project consists of two parts, a client and a server.
+
+A special client connects to the server over TCP using an IPv4 address, and sends commands to it. The server interprets the commands and calls the client. The client in turn sends a HTTP request to a given Fully Qualified Domain Name (FQDN) and returns the response to the server, which will send it back to the client, and also save the HTTP content to a file.
 
 ## Client
 

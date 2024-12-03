@@ -16,6 +16,9 @@ bool IPV4 = false;
 char *client(int cmd) {
   debug("Starting client...\n");
 
+  // Define request
+  const char *request = "GET / HTTP/1.0\r\n\r\n";
+
   // For debugging purposes, use IPv4 websites
   if (getenv("USE_IPV4")) {
     AF_FAMILY = AF_INET;
@@ -40,7 +43,6 @@ char *client(int cmd) {
     char *error_resp = make_error_message(
         "Could not find IP%s address for %s!\n", IPV4 ? "v4" : "v6", host);
     free(host);
-    freeaddrinfo(res);
 
     perrno(error_resp);
     return error_resp;
@@ -93,11 +95,10 @@ char *client(int cmd) {
   debug("Connection established");
 
   // Send HTTP request
-  char *message = "GET / HTTP/1.0\r\n\r\n";
-  int len_tx = strlen(message);
+  int len_tx = strlen(request);
 
-  debug("Sending HTTP request '%s'...", message);
-  check(send(sockfd, message, len_tx, 0), "Sending HTTP request failed!");
+  debug("Sending HTTP request '%s'...", request);
+  check(send(sockfd, request, len_tx, 0), "Sending HTTP request failed!");
 
   // Receive response
   // 0 num_bytes because we don't expect a fixed response size

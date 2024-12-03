@@ -78,6 +78,13 @@ char *client(int cmd) {
   }
   debug("Socket created");
 
+  // Set timeouts for the socket, because we don't want to wait forever
+  struct timeval timeout;
+  timeout.tv_sec = 5;
+  timeout.tv_usec = 0;
+  setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+  setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+
   // Connect to the remote over socket
   int connect_resp = connect(sockfd, res->ai_addr, res->ai_addrlen);
   // servinfo is no longer needed, dispose

@@ -11,57 +11,6 @@
 int AF_FAMILY = AF_INET6;
 bool IPV4 = false;
 
-// Get the addrinfo for a given hostname and service name
-struct addrinfo *get_ip_addrinfo(const char *name, const char *service) {
-  struct addrinfo hints, *res;
-  int status;
-
-  memset(&hints, 0, sizeof hints); // zero-init the struct
-  hints.ai_family = AF_FAMILY;     // we only want IPv6
-  hints.ai_socktype = SOCK_STREAM; // TCP stream sockets
-  hints.ai_flags = 0;
-
-  // This may leak due to a bug in glibc and the way the DNS resolver is called,
-  // but is not an error
-  if ((status = getaddrinfo(name, "http", &hints, &res)) != 0) {
-    error("getaddrinfo error: %s\n", gai_strerror(status));
-    freeaddrinfo(res);
-    return NULL;
-  }
-
-  return res;
-}
-
-// Get the string representation of an IP address returned by `get_ip_addrinfo`
-char *get_ip_addrstr(struct addrinfo *res) {
-  int hostlen = IPV4 ? INET_ADDRSTRLEN : INET6_ADDRSTRLEN;
-  char *hostaddr = malloc_s(hostlen * sizeof(char));
-  bool addr_found = false;
-
-  // Check all results, stop on first valid address
-  for (struct addrinfo *p = res; p != NULL && !addr_found; p = p->ai_next) {
-    // convert the IP to a string and print it
-    debug("af_family: %d", AF_FAMILY);
-    void *in_addr = get_in_addr(p->ai_addr);
-    const char *ntop = inet_ntop(AF_FAMILY, in_addr, hostaddr, hostlen);
-
-    if (!ntop) {
-      perror("Failed to get string representation of remote address");
-    } else {
-      debug("%s", ntop);
-      addr_found = true;
-    }
-  }
-
-  if (!addr_found) {
-    error("Could not find a valid IP%s address!", IPV4 ? "v4" : "v6");
-    free(hostaddr);
-    return NULL;
-  }
-
-  return hostaddr;
-}
-
 // Client that performs a HTTP 1.0 request to a pre-defined list of hostnames,
 // selected through `cmd`. Valid cmds range from 0 to 21 (inclusive).
 char *client(int cmd) {
@@ -223,4 +172,55 @@ char *client(int cmd) {
 
   // Return the temporary pointer and let the caller handle it
   return buf_copy;
+}
+
+// Get the addrinfo for a given hostname and service name
+struct addrinfo *get_ip_addrinfo(const char *name, const char *service) {
+  struct addrinfo hints, *res;
+  int status;
+
+  memset(&hints, 0, sizeof hints); // zero-init the struct
+  hints.ai_family = AF_FAMILY;     // we only want IPv6
+  hints.ai_socktype = SOCK_STREAM; // TCP stream sockets
+  hints.ai_flags = 0;
+
+  // This may leak due to a bug in glibc and the way the DNS resolver is called,
+  // but is not an error
+  if ((status = getaddrinfo(name, "http", &hints, &res)) != 0) {
+    error("getaddrinfo error: %s\n", gai_strerror(status));
+    freeaddrinfo(res);
+    return NULL;
+  }
+
+  return res;
+}
+
+// Get the string representation of an IP address returned by `get_ip_addrinfo`
+char *get_ip_addrstr(struct addrinfo *res) {
+  int hostlen = IPV4 ? INET_ADDRSTRLEN : INET6_ADDRSTRLEN;
+  char *hostaddr = malloc_s(hostlen * sizeof(char));
+  bool addr_found = false;
+
+  // Check all results, stop on first valid address
+  for (struct addrinfo *p = res; p != NULL && !addr_found; p = p->ai_next) {
+    // convert the IP to a string and print it
+    debug("af_family: %d", AF_FAMILY);
+    void *in_addr = get_in_addr(p->ai_addr);
+    const char *ntop = inet_ntop(AF_FAMILY, in_addr, hostaddr, hostlen);
+
+    if (!ntop) {
+      perror("Failed to get string representation of remote address");
+    } else {
+      debug("%s", ntop);
+      addr_found = true;
+    }
+  }
+
+  if (!addr_found) {
+    error("Could not find a valid IP%s address!", IPV4 ? "v4" : "v6");
+    free(hostaddr);
+    return NULL;
+  }
+
+  return hostaddr;
 }
